@@ -58,8 +58,8 @@ jobs:
     - name: upload artifact
       uses: actions/upload-artifact@v2
       with:
-        name: mnian-${{matrix.os}}-${{matrix.mode.full}}
+        name: mnian-${{matrix.os}}-${{matrix.mode.short}}
         path: |
           ./build/mnian/mnian
-          ./build/mnian/${{matrix.mode.short}}/mnian.exe
+          ./build/mnian/${{matrix.mode.full}}/mnian.exe
         if-no-files-found: ignore
