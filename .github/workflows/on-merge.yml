@@ -1,0 +1,65 @@
+name: on-merge
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  cpplint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v1
+
+    - name: install cpplint
+      run : pip install cpplint
+
+    - name: exec cpplint
+      run : cpplint --recursive .
+
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os  : [ubuntu, windows, macOS]
+        mode:
+          - { full: Debug,          short: debug   }
+          - { full: RelWithDebInfo, short: fat     }
+          - { full: MinSizeRel,     short: slim    }
+          - { full: Release,        short: release }
+
+    runs-on: ${{matrix.os}}-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - name: make build dir
+      shell: bash
+      run : cmake -E make_directory build
+
+    - name: configure cmake
+      shell: bash
+      working-directory: ./build
+      run: cmake .. -DCMAKE_BUILD_TYPE=${{matrix.mode.full}}
+
+    - name: build
+      shell: bash
+      working-directory: ./build
+      run: cmake --build . --config ${{matrix.mode.full}} --parallel
+
+    - name: test
+      shell: bash
+      working-directory: ./build
+      run: ctest . -C ${{matrix.mode.full}}
+
+    - name: upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: mnian-${{matrix.os}}-${{matrix.mode.full}}
+        path: |
+          ./build/mnian/mnian
+          ./build/mnian/${{matrix.mode.short}}/mnian.exe
+        if-no-files-found: ignore
