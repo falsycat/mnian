@@ -36,6 +36,16 @@ jobs:
       with:
         submodules: true
 
+    - name: install deps with apt-get
+      if  : matrix.os == 'ubuntu'
+      run : |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends  \
+          libgl1-mesa-dev  \
+          libglu1-mesa-dev  \
+          mesa-common-dev  \
+          xorg-dev
+
     - name: make build dir
       shell: bash
       run : cmake -E make_directory build
