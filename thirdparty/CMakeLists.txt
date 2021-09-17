@@ -16,7 +16,7 @@ FetchContent_Declare(
   URL "https://github.com/google/googletest/archive/refs/tags/release-1.11.0.zip"
 )
 
-set(BUILD_GMOCK   OFF CACHE BOOL "" FORCE)
+set(BUILD_GMOCK   ON  CACHE BOOL "" FORCE)
 set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 
 if (WIN32)
