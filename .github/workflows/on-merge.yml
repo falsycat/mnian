@@ -63,7 +63,7 @@ jobs:
     - name: test
       shell: bash
       working-directory: ./build
-      run: ctest . -C ${{matrix.mode.full}}
+      run: ctest . -C ${{matrix.mode.full}} --output-on-failure
 
     - name: upload artifact
       uses: actions/upload-artifact@v2
