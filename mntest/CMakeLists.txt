@@ -12,6 +12,7 @@ target_link_libraries(mntest
 target_sources(mntest
   PRIVATE
     action.cc
+    serialize.cc
 )
 
 add_test(NAME mntest COMMAND mntest)
