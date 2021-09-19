@@ -110,6 +110,97 @@ TEST(iDeserializer, ValueConversionToString) {
   ASSERT_EQ(s, "true");
 }
 
+TEST(iSerializer_MapGuard, SimpleAdd) {
+  MockSerializer serializer;
+
+  core::iSerializer::MapGuard map(&serializer, 3);
+  map.Add("key1", int64_t{1});
+  map.Add("key2", std::string("helloworld"));
+  map.Add("key3", 1.5);
+  {
+    ::testing::InSequence seq_;
+
+    EXPECT_CALL(serializer, SerializeMap(3));
+
+    EXPECT_CALL(serializer, SerializeKey("key1"));
+    EXPECT_CALL(
+        serializer, SerializeValue(core::iSerializer::Value(int64_t{1})));
+
+    EXPECT_CALL(serializer, SerializeKey("key2"));
+    EXPECT_CALL(
+        serializer,
+        SerializeValue(core::iSerializer::Value(std::string("helloworld"))));
+
+    EXPECT_CALL(serializer, SerializeKey("key3"));
+    EXPECT_CALL(serializer, SerializeValue(core::iSerializer::Value(1.5)));
+  }
+}
+TEST(iSerializer_MapGuard, NestedAdd) {
+  MockSerializer   serializer;
+  MockSerializable serializable1;
+  MockSerializable serializable2;
+  MockSerializable serializable3;
+
+  core::iSerializer::MapGuard map(&serializer, 3);
+  map.Add("key1", &serializable1);
+  map.Add("key2", &serializable2);
+  map.Add("key3", &serializable3);
+  {
+    ::testing::InSequence seq_;
+
+    EXPECT_CALL(serializer, SerializeMap(3));
+
+    EXPECT_CALL(serializer, SerializeKey("key1"));
+    EXPECT_CALL(serializable1, Serialize(&serializer));
+
+    EXPECT_CALL(serializer, SerializeKey("key2"));
+    EXPECT_CALL(serializable2, Serialize(&serializer));
+
+    EXPECT_CALL(serializer, SerializeKey("key3"));
+    EXPECT_CALL(serializable3, Serialize(&serializer));
+  }
+}
+
+TEST(iSerializer_ArrayGuard, SimpleAdd) {
+  MockSerializer serializer;
+
+  core::iSerializer::ArrayGuard array(&serializer, 3);
+  array.Add(int64_t{1});
+  array.Add(std::string("helloworld"));
+  array.Add(1.5);
+  {
+    ::testing::InSequence seq_;
+
+    EXPECT_CALL(serializer, SerializeArray(3));
+
+    EXPECT_CALL(
+        serializer, SerializeValue(core::iSerializer::Value(int64_t{1})));
+    EXPECT_CALL(
+        serializer,
+        SerializeValue(core::iSerializer::Value(std::string("helloworld"))));
+    EXPECT_CALL(serializer, SerializeValue(core::iSerializer::Value(1.5)));
+  }
+}
+TEST(iSerializer_ArrayGuard, NestedAdd) {
+  MockSerializer   serializer;
+  MockSerializable serializable1;
+  MockSerializable serializable2;
+  MockSerializable serializable3;
+
+  core::iSerializer::ArrayGuard array(&serializer, 3);
+  array.Add(&serializable1);
+  array.Add(&serializable2);
+  array.Add(&serializable3);
+  {
+    ::testing::InSequence seq_;
+
+    EXPECT_CALL(serializer, SerializeArray(3));
+    EXPECT_CALL(serializable1, Serialize(&serializer));
+    EXPECT_CALL(serializable2, Serialize(&serializer));
+    EXPECT_CALL(serializable3, Serialize(&serializer));
+  }
+}
+
 TEST(MockSerializable, SimpleSerialize) {
   MockSerializable serializable;
   MockSerializer   serializer;
