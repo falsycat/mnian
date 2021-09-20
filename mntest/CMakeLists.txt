@@ -12,7 +12,11 @@ target_link_libraries(mntest
 target_sources(mntest
   PRIVATE
     action.cc
+    action.h
+    file.cc
+    file.h
     serialize.cc
+    serialize.h
 )
 
 add_test(NAME mntest COMMAND mntest)
