@@ -5,8 +5,10 @@ target_include_directories(mncore PRIVATE "${PROJECT_SOURCE_DIR}")
 target_sources(mncore
   PUBLIC
     action.h
+    dir.h
     file.h
     serialize.h
   PRIVATE
+    dir.cc
     file.cc
 )

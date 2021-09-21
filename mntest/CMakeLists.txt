@@ -13,6 +13,8 @@ target_sources(mntest
   PRIVATE
     action.cc
     action.h
+    dir.cc
+    dir.h
     file.cc
     file.h
     serialize.cc
