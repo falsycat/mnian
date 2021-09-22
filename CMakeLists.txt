@@ -5,8 +5,9 @@ enable_testing()
 
 
 # define options
-option(MNIAN_STATIC     "link all libs statically" ON)
 option(MNIAN_BUILD_TEST "build unittests"          ON)
+option(MNIAN_STATIC     "link all libs statically" ON)
+option(MNIAN_USE_TRACY  "use tracy profiler"       ON)
 
 
 # this project requires C++20

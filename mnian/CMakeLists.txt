@@ -12,4 +12,5 @@ target_link_libraries(mnian
     glew
     glfw
     imgui
+    tracy
 )

@@ -100,3 +100,32 @@ target_include_directories(imgui SYSTEM
 target_link_libraries(imgui
   PRIVATE glfw
 )
+
+
+# ---- Tracy ----
+# repository: https://github.com/wolfpld/tracy
+# license   : BSD-3-Clause
+
+FetchContent_Declare(
+  tracy
+  URL "https://github.com/wolfpld/tracy/archive/refs/tags/v0.7.8.zip"
+)
+
+FetchContent_Populate(tracy)
+
+add_library(tracy)
+target_sources(tracy
+  PRIVATE
+    "${tracy_SOURCE_DIR}/TracyClient.cpp"
+  PUBLIC
+    "${tracy_SOURCE_DIR}/Tracy.hpp"
+)
+target_include_directories(tracy SYSTEM
+  PUBLIC "${tracy_SOURCE_DIR}"
+)
+
+if (MNIAN_USE_TRACY)
+  target_compile_definitions(tracy
+    PUBLIC TRACY_ENABLE
+  )
+endif()
