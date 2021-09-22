@@ -72,27 +72,21 @@ class iSerializer {
   // }
   // // output: {"key1":0,"key2":"helloworld","key3":{"subkey1":4.3}}
   // ```
-  struct MapGuard {
+  class MapGuard final : public iSerializable {
    public:
     using Item = std::variant<Value, const iSerializable*>;
 
 
     MapGuard() = delete;
     explicit MapGuard(iSerializer* serializer) : serializer_(serializer) {
+      assert(serializer_);
     }
     MapGuard(iSerializer* serializer, size_t reserve) : MapGuard(serializer) {
       items_.reserve(reserve);
     }
     ~MapGuard() {
-      serializer_->SerializeMap(items_.size());
-      for (auto& item : items_) {
-        serializer_->SerializeKey(item.first);
-        if (std::holds_alternative<const iSerializable*>(item.second)) {
-          std::get<const iSerializable*>(item.second)->Serialize(serializer_);
-        } else {
-          serializer_->SerializeValue(std::move(std::get<Value>(item.second)));
-        }
-      }
+      if (!serializer_) return;
+      Serialize(serializer_);
     }
 
     MapGuard(const MapGuard&) = delete;
@@ -103,14 +97,22 @@ class iSerializer {
 
 
     void Add(const std::string& key, Value&& value) {
+      assert(serializer_);
       items_.emplace_back(key, std::move(value));
     }
     void Add(const std::string& key, const Value& value) {
+      assert(serializer_);
       items_.emplace_back(key, value);
     }
+
+    // The serializable object must be alive longer than `this`.
     void Add(const std::string& key, const iSerializable* serializable) {
+      assert(serializer_);
       items_.emplace_back(key, serializable);
     }
+
+   protected:
+    void Serialize(iSerializer* serializer) const override;
 
    private:
     iSerializer* serializer_;
@@ -131,26 +133,21 @@ class iSerializer {
   // }
   // // output: [0,"helloworld",{"subkey1":4.3}]
   // ```
-  struct ArrayGuard {
+  class ArrayGuard final : public iSerializable {
    public:
     using Item = std::variant<Value, const iSerializable*>;
 
 
     ArrayGuard() = delete;
     explicit ArrayGuard(iSerializer* serial) : serializer_(serial) {
+      assert(serializer_);
     }
     ArrayGuard(iSerializer* serial, size_t reserve) : ArrayGuard(serial) {
       items_.reserve(reserve);
     }
     ~ArrayGuard() {
-      serializer_->SerializeArray(items_.size());
-      for (auto& item : items_) {
-        if (std::holds_alternative<const iSerializable*>(item)) {
-          std::get<const iSerializable*>(item)->Serialize(serializer_);
-        } else {
-          serializer_->SerializeValue(std::get<Value>(item));
-        }
-      }
+      if (!serializer_) return;
+      Serialize(serializer_);
     }
 
     ArrayGuard(const ArrayGuard&) = delete;
@@ -166,9 +163,14 @@ class iSerializer {
     void Add(const Value& value) {
       items_.emplace_back(value);
     }
+
+    // The serializable object must be alive longer than `this`.
     void Add(const iSerializable* serializable) {
       items_.emplace_back(serializable);
     }
+
+   protected:
+    void Serialize(iSerializer* serializer) const override;
 
    private:
     iSerializer* serializer_;

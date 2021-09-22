@@ -11,4 +11,5 @@ target_sources(mncore
   PRIVATE
     dir.cc
     file.cc
+    serialize.cc
 )

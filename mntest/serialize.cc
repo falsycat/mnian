@@ -111,7 +111,7 @@ TEST(iDeserializer, ValueConversionToString) {
 }
 
 TEST(iSerializer_MapGuard, SimpleAdd) {
-  MockSerializer serializer;
+  ::testing::StrictMock<MockSerializer> serializer;
 
   core::iSerializer::MapGuard map(&serializer, 3);
   map.Add("key1", int64_t{1});
@@ -136,7 +136,7 @@ TEST(iSerializer_MapGuard, SimpleAdd) {
   }
 }
 TEST(iSerializer_MapGuard, NestedAdd) {
-  MockSerializer   serializer;
+  ::testing::StrictMock<MockSerializer> serializer;
   MockSerializable serializable1;
   MockSerializable serializable2;
   MockSerializable serializable3;
@@ -160,9 +160,49 @@ TEST(iSerializer_MapGuard, NestedAdd) {
     EXPECT_CALL(serializable3, Serialize(&serializer));
   }
 }
+TEST(iSerializer_MapGuard, RecursiveAdd) {
+  ::testing::StrictMock<MockSerializer> serializer;
+  MockSerializable serializable1;
+  MockSerializable serializable2;
+  MockSerializable serializable3;
+
+  core::iSerializer::MapGuard submap1(&serializer);
+  submap1.Add("subkey1", &serializable1);
+
+  core::iSerializer::MapGuard submap2(&serializer);
+  submap2.Add("subkey2", &serializable2);
+
+  core::iSerializer::MapGuard submap3(&serializer);
+  submap3.Add("subkey3", &serializable3);
+
+  core::iSerializer::MapGuard map(&serializer, 3);
+  map.Add("key1", &submap1);
+  map.Add("key2", &submap2);
+  map.Add("key3", &submap3);
+  {
+    ::testing::InSequence seq_;
+
+    EXPECT_CALL(serializer, SerializeMap(3));
+
+    EXPECT_CALL(serializer, SerializeKey("key1"));
+    EXPECT_CALL(serializer, SerializeMap(1));
+    EXPECT_CALL(serializer, SerializeKey("subkey1"));
+    EXPECT_CALL(serializable1, Serialize(&serializer));
+
+    EXPECT_CALL(serializer, SerializeKey("key2"));
+    EXPECT_CALL(serializer, SerializeMap(1));
+    EXPECT_CALL(serializer, SerializeKey("subkey2"));
+    EXPECT_CALL(serializable2, Serialize(&serializer));
+
+    EXPECT_CALL(serializer, SerializeKey("key3"));
+    EXPECT_CALL(serializer, SerializeMap(1));
+    EXPECT_CALL(serializer, SerializeKey("subkey3"));
+    EXPECT_CALL(serializable3, Serialize(&serializer));
+  }
+}
 
 TEST(iSerializer_ArrayGuard, SimpleAdd) {
-  MockSerializer serializer;
+  ::testing::StrictMock<MockSerializer> serializer;
 
   core::iSerializer::ArrayGuard array(&serializer, 3);
   array.Add(int64_t{1});
@@ -182,7 +222,7 @@ TEST(iSerializer_ArrayGuard, SimpleAdd) {
   }
 }
 TEST(iSerializer_ArrayGuard, NestedAdd) {
-  MockSerializer   serializer;
+  ::testing::StrictMock<MockSerializer> serializer;
   MockSerializable serializable1;
   MockSerializable serializable2;
   MockSerializable serializable3;
@@ -200,55 +240,36 @@ TEST(iSerializer_ArrayGuard, NestedAdd) {
     EXPECT_CALL(serializable3, Serialize(&serializer));
   }
 }
+TEST(iSerializer_ArrayGuard, RecursiveAdd) {
+  ::testing::StrictMock<MockSerializer> serializer;
+  MockSerializable serializable1;
+  MockSerializable serializable2;
+  MockSerializable serializable3;
 
-TEST(MockSerializable, SimpleSerialize) {
-  MockSerializable serializable;
-  MockSerializer   serializer;
+  core::iSerializer::ArrayGuard subarray1(&serializer);
+  subarray1.Add(&serializable1);
 
-  EXPECT_CALL(serializable, Serialize(&serializer));
-  serializable.Serialize(&serializer);
-}
+  core::iSerializer::ArrayGuard subarray2(&serializer);
+  subarray2.Add(&serializable2);
 
-TEST(MockSerializer, SimpleSerialize) {
-  MockSerializer serializer;
+  core::iSerializer::ArrayGuard subarray3(&serializer);
+  subarray3.Add(&serializable3);
+
+  core::iSerializer::ArrayGuard array(&serializer, 3);
+  array.Add(&subarray1);
+  array.Add(&subarray2);
+  array.Add(&subarray3);
   {
     ::testing::InSequence seq_;
 
-    EXPECT_CALL(serializer, SerializeMap(0));
-    EXPECT_CALL(serializer, SerializeArray(0));
-    EXPECT_CALL(serializer, SerializeKey(::testing::_));
-    EXPECT_CALL(serializer, SerializeValue(::testing::_));
-    EXPECT_CALL(serializer, SerializeKey(::testing::_));
-    EXPECT_CALL(serializer, SerializeValue(::testing::_));
+    EXPECT_CALL(serializer, SerializeArray(3));
+    EXPECT_CALL(serializer, SerializeArray(1));
+    EXPECT_CALL(serializable1, Serialize(&serializer));
+    EXPECT_CALL(serializer, SerializeArray(1));
+    EXPECT_CALL(serializable2, Serialize(&serializer));
+    EXPECT_CALL(serializer, SerializeArray(1));
+    EXPECT_CALL(serializable3, Serialize(&serializer));
   }
-  serializer.SerializeMap(0);
-  serializer.SerializeArray(0);
-  serializer.SerializeKey("key1");
-  serializer.SerializeValue("value1");
-  serializer.SerializeKeyValue("key2", "value2");
-}
-
-TEST(MockDeserializer, SimpleDeserialize) {
-  MockDeserializer deserializer;
-  {
-    ::testing::InSequence seq_;
-
-    EXPECT_CALL(deserializer, EnterByIndex(::testing::Eq(0)));
-    EXPECT_CALL(deserializer, value()).
-        WillOnce(::testing::Return(std::string("value1")));
-    EXPECT_CALL(deserializer, size()).
-        WillOnce(::testing::Return(std::nullopt));
-    EXPECT_CALL(deserializer, Leave());
-  }
-  deserializer.EnterByIndex(0);
-
-  const auto value = deserializer.value();
-  ASSERT_TRUE(value);
-  ASSERT_EQ(std::get<std::string>(*value), "value1");
-
-  ASSERT_FALSE(deserializer.size());
-
-  deserializer.Leave();
 }
 
 }  // namespace mnian::test
