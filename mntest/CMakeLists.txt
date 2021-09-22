@@ -13,6 +13,7 @@ target_sources(mntest
   PRIVATE
     action.cc
     action.h
+    app.h
     conv.cc
     dir.cc
     dir.h
