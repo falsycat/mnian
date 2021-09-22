@@ -32,7 +32,12 @@ std::string iDirItem::ValidateName(const std::string& name) {
 }
 
 
-void Dir::Serialize(iSerializer* serializer) const {
+std::unique_ptr<Dir> Dir::DeserializeParam(iDeserializer*) {
+  // TODO(falsycat)
+  return nullptr;
+}
+
+void Dir::SerializeParam(iSerializer* serializer) const {
   iSerializer::MapGuard map(serializer);
   for (auto& item : items_) {
     map.Add(item->name(), item.get());
@@ -40,7 +45,12 @@ void Dir::Serialize(iSerializer* serializer) const {
 }
 
 
-void FileRef::Serialize(iSerializer* serializer) const {
+std::unique_ptr<FileRef> FileRef::DeserializeParam(iDeserializer*) {
+  // TODO(falsycat)
+  return nullptr;
+}
+
+void FileRef::SerializeParam(iSerializer* serializer) const {
   iSerializer::MapGuard map(serializer);
   map.Add("url", file_->url());
 

@@ -78,7 +78,7 @@ class iDirItemObserver {
 
 
 // An interface of DirItem, which composes Dir.
-class iDirItem : public iActionable, public iSerializable {
+class iDirItem : public iActionable, public iPolymorphicSerializable {
  public:
   friend class Dir;
   friend class iDirItemObserver;
@@ -89,7 +89,9 @@ class iDirItem : public iActionable, public iSerializable {
 
 
   iDirItem() = delete;
-  explicit iDirItem(ActionList&& actions) : iActionable(std::move(actions)) {
+  explicit iDirItem(ActionList&& actions, const char* type) :
+      iActionable(std::move(actions)),
+      iPolymorphicSerializable(type) {
   }
   ~iDirItem() override {
     for (auto observer : observers_) {
@@ -150,8 +152,19 @@ class iDirItem : public iActionable, public iSerializable {
 // Dir is a DirItem which owns child DirItems.
 class Dir : public iDirItem {
  public:
+  static constexpr const char* kType = "Dir";
+
+
+  static std::unique_ptr<Dir> DeserializeParam(iDeserializer*);
+
+  static void Register(DeserializerRegistry* reg) {
+    assert(reg);
+    reg->RegisterType<iDirItem, Dir>();
+  }
+
+
   Dir() = delete;
-  explicit Dir(ActionList&& actions) : iDirItem(std::move(actions)) {
+  explicit Dir(ActionList&& actions) : iDirItem(std::move(actions), kType) {
   }
   ~Dir() {
     while (items_.size()) RemoveByIndex(0);
@@ -242,12 +255,12 @@ class Dir : public iDirItem {
   }
 
 
-  void Serialize(iSerializer* serializer) const override;
-
-
   size_t size() const {
     return items_.size();
   }
+
+ protected:
+  void SerializeParam(iSerializer* serializer) const override;
 
  private:
   std::unique_ptr<iDirItem> RemoveQuietly(size_t index) {
@@ -277,9 +290,20 @@ class FileRef : public iDirItem {
   using Flags = uint16_t;
 
 
+  static constexpr const char* kType = "FileRef";
+
+
+  static std::unique_ptr<FileRef> DeserializeParam(iDeserializer*);
+
+  static void Register(DeserializerRegistry* reg) {
+    assert(reg);
+    reg->RegisterType<iDirItem, FileRef>();
+  }
+
+
   FileRef() = delete;
   FileRef(ActionList&& actions, iFile* file, Flags flags) :
-      iDirItem(std::move(actions)),
+      iDirItem(std::move(actions), kType),
       file_(file), flags_(flags), observer_(this, file) {
     assert(file_);
   }
@@ -318,9 +342,6 @@ class FileRef : public iDirItem {
   }
 
 
-  void Serialize(iSerializer*) const override;
-
-
   iFile& entity() const {
     return *file_;
   }
@@ -331,6 +352,9 @@ class FileRef : public iDirItem {
   bool writable() const {
     return flags_ & kWritable;
   }
+
+ protected:
+  void SerializeParam(iSerializer*) const override;
 
  private:
   class FileObserver : public iFileObserver {

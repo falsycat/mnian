@@ -4,6 +4,16 @@
 
 namespace mnian::core {
 
+void iPolymorphicSerializable::Serialize(iSerializer* serializer) const {
+  assert(serializer);
+
+  serializer->SerializeMap(2);
+  serializer->SerializeKeyValue("type", std::string(type_));
+  serializer->SerializeKey("param");
+  SerializeParam(serializer);
+}
+
+
 void iSerializer::MapGuard::Serialize(iSerializer* serializer) const {
   assert(serializer_ == serializer);
   (void) serializer;

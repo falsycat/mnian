@@ -25,6 +25,26 @@ class MockSerializable : public core::iSerializable {
   MOCK_METHOD(void, Serialize, (core::iSerializer*), (const, override));
 };
 
+class MockPolymorphicSerializable : public core::iPolymorphicSerializable {
+ public:
+  static constexpr const char* kType = "MockPolymorphic";
+
+
+  MockPolymorphicSerializable() : iPolymorphicSerializable(kType) {
+  }
+
+  MockPolymorphicSerializable(const MockPolymorphicSerializable&) = delete;
+  MockPolymorphicSerializable(MockPolymorphicSerializable&&) = delete;
+
+  MockPolymorphicSerializable& operator=(
+      const MockPolymorphicSerializable&) = delete;
+  MockPolymorphicSerializable& operator=(
+      MockPolymorphicSerializable&&) = delete;
+
+
+  MOCK_METHOD(void, SerializeParam, (core::iSerializer*), (const, override));
+};
+
 class MockSerializer : public core::iSerializer {
  public:
   MockSerializer() = default;
@@ -44,7 +64,10 @@ class MockSerializer : public core::iSerializer {
 
 class MockDeserializer : public core::iDeserializer {
  public:
-  MockDeserializer() = default;
+  MockDeserializer() = delete;
+  explicit MockDeserializer(const core::DeserializerRegistry& reg) :
+      iDeserializer(reg) {
+  }
 
   MockDeserializer(const MockDeserializer&) = delete;
   MockDeserializer(MockDeserializer&&) = delete;

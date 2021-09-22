@@ -7,18 +7,25 @@
 #include <cassert>
 #include <cinttypes>
 #include <cmath>
+#include <functional>
 #include <limits>
+#include <map>
+#include <memory>
 #include <optional>
 #include <string>
+#include <typeinfo>
 #include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
 
+#include "mncore/app.h"
+
 
 namespace mnian::core {
 
 class iSerializer;
+class DeserializerRegistry;
 
 // This is an interface of what can be serialized.
 class iSerializable {
@@ -34,6 +41,35 @@ class iSerializable {
 
 
   virtual void Serialize(iSerializer*) const = 0;
+};
+
+
+class iPolymorphicSerializable : public iSerializable {
+ public:
+  iPolymorphicSerializable() = delete;
+  explicit iPolymorphicSerializable(const char* type) : type_(type) {
+  }
+
+  iPolymorphicSerializable(const iPolymorphicSerializable&) = default;
+  iPolymorphicSerializable(iPolymorphicSerializable&&) = default;
+
+  iPolymorphicSerializable& operator=(
+      const iPolymorphicSerializable&) = default;
+  iPolymorphicSerializable& operator=(iPolymorphicSerializable&&) = default;
+
+
+  void Serialize(iSerializer*) const override;
+
+
+  std::string_view type() const {
+    return type_;
+  }
+
+ protected:
+  virtual void SerializeParam(iSerializer*) const = 0;
+
+ private:
+  const char* type_;
 };
 
 
@@ -367,7 +403,11 @@ class iDeserializer {
   }
 
 
-  iDeserializer() = default;
+  iDeserializer() = delete;
+  explicit iDeserializer(const DeserializerRegistry& registry) :
+      registry_(&registry) {
+    assert(registry_);
+  }
   virtual ~iDeserializer() = default;
 
   iDeserializer(const iDeserializer&) = default;
@@ -378,8 +418,9 @@ class iDeserializer {
 
 
   // Makes the specified item as a current target. If no such item is found,
-  // Enter*() returns false, and value() and size() return nothing. You can
-  // enter more deeply by Enter*() and recover from this state by Leave().
+  // Enter*() returns false, and value() and size() become to return nothing.
+  // You can enter more deeply by Enter*() and recover from this state by
+  // Leave().
   // EnterByKey() is available only when the current target is a map.
   // EnterByIndex() is available only when it's an array.
   virtual bool EnterByKey(const std::string& key) = 0;
@@ -429,6 +470,94 @@ class iDeserializer {
     T out = def;
     return in && ConvertFromValue(&out, in)? out: def;
   }
+
+
+  const DeserializerRegistry& registry() const {
+    return *registry_;
+  }
+
+ private:
+  const DeserializerRegistry* registry_;
+};
+
+
+// This is like a DI container for deserializing.
+class DeserializerRegistry final {
+ public:
+  using Factory =
+      std::function<std::unique_ptr<iPolymorphicSerializable>(iDeserializer*)>;
+
+  using FactorySet = std::map<std::string, Factory>;
+
+
+  DeserializerRegistry() = delete;
+  explicit DeserializerRegistry(iApp* app) : app_(app) {
+    assert(app_);
+  }
+
+  DeserializerRegistry(const DeserializerRegistry&) = delete;
+  DeserializerRegistry(DeserializerRegistry&&) = delete;
+
+  DeserializerRegistry& operator=(const DeserializerRegistry&) = delete;
+  DeserializerRegistry& operator=(DeserializerRegistry&&) = delete;
+
+
+  template <typename I>
+  void RegisterFactory(const std::string& name, Factory&& factory) {
+    static_assert(std::is_base_of<iPolymorphicSerializable, I>::value);
+
+    auto& set = items_[typeid(I).hash_code()];
+    assert(!set.contains(name));
+    set[name] = std::move(factory);
+  }
+
+  template <typename I, typename T>
+  void RegisterType() {
+    static_assert(std::is_base_of<iPolymorphicSerializable, I>::value);
+    static_assert(std::is_base_of<I, T>::value);
+
+    RegisterFactory<I>(
+        T::kType,
+        [](iDeserializer* des) {
+          return T::DeserializeParam(des);
+        });
+  }
+
+
+  template <typename I>
+  std::unique_ptr<I> Deserialize(
+      iDeserializer* des, const std::string& name) const {
+    static_assert(std::is_base_of<iPolymorphicSerializable, I>::value);
+
+    auto set = items_.find(typeid(I).hash_code());
+    if (set == items_.end()) {
+      return nullptr;
+    }
+
+    auto factory = set->second.find(name);
+    if (factory == set->second.end()) {
+      return nullptr;
+    }
+
+    auto product = factory->second(des);
+    if (!product) {
+      return nullptr;
+    }
+
+    auto ret = dynamic_cast<I*>(product.release());
+    assert(ret);
+    return std::unique_ptr<I>(ret);
+  }
+
+
+  iApp& app() const {
+    return *app_;
+  }
+
+ private:
+  iApp* app_;
+
+  std::map<size_t, FactorySet> items_;
 };
 
 }  // namespace mnian::core

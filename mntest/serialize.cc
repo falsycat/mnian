@@ -4,11 +4,32 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <string>
 #include <variant>
 
+#include "mntest/app.h"
+
 
 namespace mnian::test {
+
+TEST(iPolymorphicSerializable, Serialize) {
+  MockPolymorphicSerializable serializable;
+  MockSerializer serializer;
+  {
+    ::testing::InSequence seq_;
+    EXPECT_CALL(serializer, SerializeMap(2));
+    EXPECT_CALL(serializer, SerializeKey("type"));
+    EXPECT_CALL(
+        serializer,
+        SerializeValue(core::iSerializer::Value(
+                std::string(MockPolymorphicSerializable::kType))));
+    EXPECT_CALL(serializer, SerializeKey("param"));
+
+    EXPECT_CALL(serializable, SerializeParam(&serializer));
+  }
+  serializable.Serialize(&serializer);
+}
 
 TEST(iDeserializer, ValueConversionToSigned) {
   using core::iDeserializer;
@@ -33,6 +54,7 @@ TEST(iDeserializer, ValueConversionToSigned) {
   ASSERT_FALSE(iDeserializer::ConvertFromValue(
           &i32, std::string("1abc")));
 }
+
 TEST(iDeserializer, ValueConversionToUnsigned) {
   using core::iDeserializer;
 
@@ -58,6 +80,7 @@ TEST(iDeserializer, ValueConversionToUnsigned) {
           &u32, std::string("helloworld")));
   ASSERT_FALSE(iDeserializer::ConvertFromValue(&u32, std::string("1abc")));
 }
+
 TEST(iDeserializer, ValueConversionToFloating) {
   using core::iDeserializer;
 
@@ -77,6 +100,7 @@ TEST(iDeserializer, ValueConversionToFloating) {
   ASSERT_FALSE(iDeserializer::ConvertFromValue(&f, std::string("+INF")));
   ASSERT_FALSE(iDeserializer::ConvertFromValue(&f, std::string("-INF")));
 }
+
 TEST(iDeserializer, ValueConversionToBool) {
   using core::iDeserializer;
 
@@ -96,6 +120,7 @@ TEST(iDeserializer, ValueConversionToBool) {
   ASSERT_FALSE(iDeserializer::ConvertFromValue(&b, std::string("TRUE")));
   ASSERT_FALSE(iDeserializer::ConvertFromValue(&b, std::string("FALSE")));
 }
+
 TEST(iDeserializer, ValueConversionToString) {
   using core::iDeserializer;
 
@@ -109,6 +134,7 @@ TEST(iDeserializer, ValueConversionToString) {
   ASSERT_TRUE(iDeserializer::ConvertFromValue(&s, bool{true}));
   ASSERT_EQ(s, "true");
 }
+
 
 TEST(iSerializer_MapGuard, SimpleAdd) {
   ::testing::StrictMock<MockSerializer> serializer;
@@ -135,6 +161,7 @@ TEST(iSerializer_MapGuard, SimpleAdd) {
     EXPECT_CALL(serializer, SerializeValue(core::iSerializer::Value(1.5)));
   }
 }
+
 TEST(iSerializer_MapGuard, NestedAdd) {
   ::testing::StrictMock<MockSerializer> serializer;
   MockSerializable serializable1;
@@ -160,6 +187,7 @@ TEST(iSerializer_MapGuard, NestedAdd) {
     EXPECT_CALL(serializable3, Serialize(&serializer));
   }
 }
+
 TEST(iSerializer_MapGuard, RecursiveAdd) {
   ::testing::StrictMock<MockSerializer> serializer;
   MockSerializable serializable1;
@@ -201,6 +229,7 @@ TEST(iSerializer_MapGuard, RecursiveAdd) {
   }
 }
 
+
 TEST(iSerializer_ArrayGuard, SimpleAdd) {
   ::testing::StrictMock<MockSerializer> serializer;
 
@@ -221,6 +250,7 @@ TEST(iSerializer_ArrayGuard, SimpleAdd) {
     EXPECT_CALL(serializer, SerializeValue(core::iSerializer::Value(1.5)));
   }
 }
+
 TEST(iSerializer_ArrayGuard, NestedAdd) {
   ::testing::StrictMock<MockSerializer> serializer;
   MockSerializable serializable1;
@@ -240,6 +270,7 @@ TEST(iSerializer_ArrayGuard, NestedAdd) {
     EXPECT_CALL(serializable3, Serialize(&serializer));
   }
 }
+
 TEST(iSerializer_ArrayGuard, RecursiveAdd) {
   ::testing::StrictMock<MockSerializer> serializer;
   MockSerializable serializable1;
@@ -271,5 +302,59 @@ TEST(iSerializer_ArrayGuard, RecursiveAdd) {
     EXPECT_CALL(serializable3, Serialize(&serializer));
   }
 }
+
+
+TEST(DeserializerRegistry, RegisterFactory) {
+  ::testing::StrictMock<MockApp> app;
+  core::DeserializerRegistry reg(&app);
+
+  reg.RegisterFactory<core::iPolymorphicSerializable>(
+      MockPolymorphicSerializable::kType,
+      [](auto) { return std::make_unique<MockPolymorphicSerializable>(); });
+
+  ::testing::StrictMock<MockDeserializer> deserializer(reg);
+
+  auto product = reg.Deserialize<core::iPolymorphicSerializable>(
+      &deserializer, MockPolymorphicSerializable::kType);
+  ASSERT_TRUE(product);
+  ASSERT_TRUE(dynamic_cast<MockPolymorphicSerializable*>(product.get()));
+
+  ASSERT_FALSE(
+      reg.Deserialize<core::iPolymorphicSerializable>(&deserializer, "hello"));
+}
+
+namespace {
+
+class TestSerializable : public core::iPolymorphicSerializable {
+ public:
+  static constexpr const char* kType = "Test";
+
+  static std::unique_ptr<TestSerializable> DeserializeParam(
+      core::iDeserializer*) {
+    return std::make_unique<TestSerializable>();
+  }
+  TestSerializable() : iPolymorphicSerializable(kType) {
+  }
+  void SerializeParam(core::iSerializer*) const override {
+  }
+};
+TEST(DeserializerRegistry, RegisterType) {
+  ::testing::StrictMock<MockApp> app;
+  core::DeserializerRegistry reg(&app);
+
+  reg.RegisterType<core::iPolymorphicSerializable, TestSerializable>();
+
+  ::testing::StrictMock<MockDeserializer> deserializer(reg);
+
+  auto product = reg.Deserialize<core::iPolymorphicSerializable>(
+      &deserializer, TestSerializable::kType);
+  ASSERT_TRUE(product);
+  ASSERT_TRUE(dynamic_cast<TestSerializable*>(product.get()));
+
+  ASSERT_FALSE(
+      reg.Deserialize<core::iPolymorphicSerializable>(&deserializer, "hello"));
+}
+
+}  // namespace
 
 }  // namespace mnian::test

@@ -44,7 +44,10 @@ class MockDirItemObserver : public core::iDirItemObserver {
 
 class MockDirItem : public core::iDirItem {
  public:
-  MockDirItem() : iDirItem(ActionList {}) {
+  static constexpr const char* kType = "Mock";
+
+
+  MockDirItem() : iDirItem(ActionList {}, kType) {
   }
 
   MockDirItem(const MockDirItem&) = delete;
@@ -55,7 +58,7 @@ class MockDirItem : public core::iDirItem {
 
 
   MOCK_METHOD(void, Visit, (core::iDirItemVisitor*), (override));
-  MOCK_METHOD(void, Serialize, (core::iSerializer*), (const, override));
+  MOCK_METHOD(void, SerializeParam, (core::iSerializer*), (const, override));
 };
 
 }  // namespace mnian::test
