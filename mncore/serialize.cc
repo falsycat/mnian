@@ -24,7 +24,7 @@ void iSerializer::MapGuard::Serialize(iSerializer* serializer) const {
     if (std::holds_alternative<const iSerializable*>(item.second)) {
       std::get<const iSerializable*>(item.second)->Serialize(serializer_);
     } else {
-      serializer_->SerializeValue(std::move(std::get<Value>(item.second)));
+      serializer_->SerializeValue(std::move(std::get<Any>(item.second)));
     }
   }
 
@@ -42,13 +42,33 @@ void iSerializer::ArrayGuard::Serialize(iSerializer* serializer) const {
     if (std::holds_alternative<const iSerializable*>(item)) {
       std::get<const iSerializable*>(item)->Serialize(serializer_);
     } else {
-      serializer_->SerializeValue(std::get<Value>(item));
+      serializer_->SerializeValue(std::get<Any>(item));
     }
   }
 
   auto this_ = const_cast<ArrayGuard*>(this);
   this_->serializer_ = nullptr;
   this_->items_.clear();
+}
+
+
+std::string iDeserializer::GenerateLocation() const {
+  std::string ans;
+  for (auto& key : stack_) {
+    if (std::holds_alternative<std::string>(key)) {
+      ans += std::get<std::string>(key)+".";
+
+    } else if (std::holds_alternative<size_t>(key)) {
+      // Removes the last dot.
+      ans  = ans.substr(0, ans.size()-1);
+      ans += "["+std::to_string(std::get<size_t>(key))+"].";
+
+    } else {
+      assert(false);  // UNREACHABLE
+    }
+  }
+  // Removes the last dot.
+  return ans.substr(0, ans.size()-1);
 }
 
 }  // namespace mnian::core

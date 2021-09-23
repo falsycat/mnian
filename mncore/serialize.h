@@ -1,31 +1,27 @@
 // No copyright
 //
 // This file declares utilities for serialization.
-//
 #pragma once
 
 #include <cassert>
-#include <cinttypes>
-#include <cmath>
 #include <functional>
-#include <limits>
 #include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <typeinfo>
-#include <type_traits>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "mncore/app.h"
+#include "mncore/conv.h"
+#include "mncore/logger.h"
 
 
 namespace mnian::core {
 
 class iSerializer;
-class DeserializerRegistry;
+class iDeserializer;
 
 // This is an interface of what can be serialized.
 class iSerializable {
@@ -74,28 +70,8 @@ class iPolymorphicSerializable : public iSerializable {
 
 
 // This is an interface of serializer.
-//
-// ## Example: Serializing Map
-// ```
-// serializer.SerializeMap(3);  // number of key-value pairs
-// serializer.SerializeKeyValue("key1", 0);
-// serializer.SerializeKeyValue("key2", "helloworld");
-// serializer.SerializeKeyValue("key3", 4.3);
-// // output: {"key1":0,"key2":"helloworld","key3":4.3}
-// ```
-//
-// ## Example: Serializing Array
-// ```
-// serializer.SerializeArray(3)
-// serializer.SerializeValue(0);
-// serializer.SerializeValue("helloworld");
-// serializer.SerializeValue(4.3);
-// // output: [0, "helloworld", 4.3]
-// ```
 class iSerializer {
  public:
-  using Value = std::variant<int64_t, double, bool, std::string>;
-
   // MapGuard can provide a way as a scope guard to serialize map object safely.
   //
   // ## Example
@@ -110,7 +86,7 @@ class iSerializer {
   // ```
   class MapGuard final : public iSerializable {
    public:
-    using Item = std::variant<Value, const iSerializable*>;
+    using Item = std::variant<Any, const iSerializable*>;
 
 
     MapGuard() = delete;
@@ -132,11 +108,11 @@ class iSerializer {
     MapGuard& operator=(MapGuard&&) = delete;
 
 
-    void Add(const std::string& key, Value&& value) {
+    void Add(const std::string& key, Any&& value) {
       assert(serializer_);
       items_.emplace_back(key, std::move(value));
     }
-    void Add(const std::string& key, const Value& value) {
+    void Add(const std::string& key, const Any& value) {
       assert(serializer_);
       items_.emplace_back(key, value);
     }
@@ -171,7 +147,7 @@ class iSerializer {
   // ```
   class ArrayGuard final : public iSerializable {
    public:
-    using Item = std::variant<Value, const iSerializable*>;
+    using Item = std::variant<Any, const iSerializable*>;
 
 
     ArrayGuard() = delete;
@@ -193,10 +169,10 @@ class iSerializer {
     ArrayGuard& operator=(ArrayGuard&&) = delete;
 
 
-    void Add(Value&& value) {
+    void Add(Any&& value) {
       items_.emplace_back(std::move(value));
     }
-    void Add(const Value& value) {
+    void Add(const Any& value) {
       items_.emplace_back(value);
     }
 
@@ -228,261 +204,19 @@ class iSerializer {
   virtual void SerializeMap(size_t n) = 0;
   virtual void SerializeArray(size_t n) = 0;
   virtual void SerializeKey(const std::string& key) = 0;
-  virtual void SerializeValue(const Value& value) = 0;
+  virtual void SerializeValue(const Any& value) = 0;
 
 
   // Sugar syntax of key-value pair serialization.
-  void SerializeKeyValue(const std::string& key, Value&& value) {
+  void SerializeKeyValue(const std::string& key, Any&& value) {
     SerializeKey(key);
     SerializeValue(std::move(value));
   }
 };
 
 
-// This is an interface of deserializer.
-//
-// ## Example: Deserialize Map
-// ```
-// // input: {"key1":0,"key2":"helloworld","key3":4.3}
-// assert(deserializer.size() == 3);
-//
-// deserializer.EnterByKey("key1");
-// assert(deserializer.value() == 0);
-// deserializer.Leave();
-//
-// deserializer.EnterByKey("key2");
-// assert(deserializer.value() == "helloworld");
-// deserializer.Leave();
-//
-// deserializer.EnterByKey("key3");
-// assert(deserializer.value() == 4.3);
-// deserializer.Leave();
-// ```
-//
-// ## Example: Deserialize Array
-// ```
-// // input: [0,"helloworld",4.3]
-// assert(deserializer.size() == 3);
-//
-// deserializer.EnterByIndex(0);
-// assert(deserializer.GetValue() == 0);
-// deserializer.Leave();
-//
-// deserializer.EnterByIndex(1);
-// assert(deserializer.GetValue() == "helloworld");
-// deserializer.Leave();
-//
-// deserializer.EnterByIndex(2);
-// assert(deserializer.GetValue() == 4.3);
-// deserializer.Leave();
-// ```
-class iDeserializer {
- public:
-  using Value = iSerializer::Value;
-
-
-  // Converts a value of `in` into `out`.
-  template <typename T>
-  static bool ConvertFromValue(T* out, const Value& in) {
-    // Checks exact types firstly.
-    if constexpr (std::is_same<T, bool>::value) {
-      if (std::holds_alternative<std::string>(in)) {
-        // Converts to bool from string.
-        const std::string& x = std::get<std::string>(in);
-
-        const bool t = (x == "true");
-        if (t == (x == "false")) {
-          return false;
-        }
-        *out = t;
-        return true;
-      }
-      if (std::holds_alternative<bool>(in)) {
-        // Converts to bool from bool.
-        *out = std::get<bool>(in);
-        return true;
-      }
-      return false;
-
-    } else if constexpr (std::is_same<T, std::string>::value) {
-      // Converts to string from any types.
-      if (std::holds_alternative<std::string>(in)) {
-        *out = std::get<std::string>(in);
-        return true;
-      }
-      if (std::holds_alternative<bool>(in)) {
-        *out = std::get<bool>(in)? "true": "false";
-        return true;
-      }
-      if (std::holds_alternative<int64_t>(in)) {
-        *out = std::to_string(std::get<int64_t>(in));
-        return true;
-      }
-      if (std::holds_alternative<double>(in)) {
-        *out = std::to_string(std::get<double>(in));
-        return true;
-      }
-      return false;
-
-    } else if constexpr (std::is_integral<T>::value) {
-      using L = std::numeric_limits<T>;
-
-      if (std::holds_alternative<std::string>(in)) {
-        // Converts to integral from string.
-        char* end;
-        if constexpr (std::is_unsigned<T>::value) {
-          const uintmax_t ret = std::strtoumax(
-              std::get<std::string>(in).c_str(), &end, 0);
-          if (L::max() < ret || *end != 0) {
-            return false;
-          }
-          *out = static_cast<T>(ret);
-          return true;
-        } else {
-          const intmax_t ret = std::strtoimax(
-              std::get<std::string>(in).c_str(), &end, 0);
-          if (ret < L::min() || L::max() < ret || *end != 0) {
-            return false;
-          }
-          *out = static_cast<T>(ret);
-          return true;
-        }
-        // UNREACHABLE
-      }
-      if (std::holds_alternative<int64_t>(in)) {
-        // Converts to integral from integral.
-        const int64_t x = std::get<int64_t>(in);
-        if (x < L::min() || L::max() < x) {
-          return false;
-        }
-        *out = static_cast<T>(x);
-        return true;
-      }
-      if (std::holds_alternative<double>(in)) {
-        // Converts to integral from floating.
-        const double x = std::get<double>(in);
-        if (!std::isfinite(x) || x < L::min() || L::max() < x) {
-          return false;
-        }
-        *out = static_cast<T>(x);
-        return true;
-      }
-      return false;
-
-    } else if constexpr (std::is_floating_point<T>::value) {
-      if (std::holds_alternative<std::string>(in)) {
-        // Converts to floating from string.
-        char* end;
-        const T ret = static_cast<T>(
-            std::strtod(std::get<std::string>(in).c_str(), &end));
-        if (*end != 0 || !std::isfinite(ret)) {
-          return false;
-        }
-        *out = ret;
-        return true;
-      }
-      if (std::holds_alternative<int64_t>(in)) {
-        // Converts to floating from integral.
-        *out = static_cast<T>(std::get<int64_t>(in));
-        return true;
-      }
-      if (std::holds_alternative<double>(in)) {
-        // Converts to floating from floating.
-        const T ret = static_cast<T>(std::get<double>(in));
-        if (!std::isfinite(ret)) {
-          return false;
-        }
-        *out = ret;
-        return true;
-      }
-      return false;
-
-    } else {
-      []<bool f = false>() { static_assert(f, "unknown output type"); }();
-    }
-  }
-
-
-  iDeserializer() = delete;
-  explicit iDeserializer(const DeserializerRegistry& registry) :
-      registry_(&registry) {
-    assert(registry_);
-  }
-  virtual ~iDeserializer() = default;
-
-  iDeserializer(const iDeserializer&) = default;
-  iDeserializer(iDeserializer&&) = default;
-
-  iDeserializer& operator=(const iDeserializer&) = default;
-  iDeserializer& operator=(iDeserializer&&) = default;
-
-
-  // Makes the specified item as a current target. If no such item is found,
-  // Enter*() returns false, and value() and size() become to return nothing.
-  // You can enter more deeply by Enter*() and recover from this state by
-  // Leave().
-  // EnterByKey() is available only when the current target is a map.
-  // EnterByIndex() is available only when it's an array.
-  virtual bool EnterByKey(const std::string& key) = 0;
-  virtual bool EnterByIndex(size_t index) = 0;
-
-  virtual void Leave() = 0;
-
-  virtual std::optional<Value> value() const = 0;
-  virtual std::optional<size_t> size() const = 0;
-
-
-  std::optional<Value> FindValue(const std::string& key) {
-    EnterByKey(key);
-    auto v = value();
-    Leave();
-    return v;
-  }
-  std::optional<Value> FindValue(size_t index) {
-    EnterByIndex(index);
-    auto v = value();
-    Leave();
-    return v;
-  }
-
-  template <typename T>
-  bool FindValue(const std::string& key, T* out) {
-    const auto in = FindValue(key);
-    if (!in) return false;
-    return ConvertFromValue(out, in);
-  }
-  template <typename T>
-  bool FindValue(size_t index, T* out) {
-    const auto in = FindValue(index);
-    if (!in) return false;
-    return ConvertFromValue(out, in);
-  }
-
-  template <typename T>
-  T FindValueOr(const std::string& key, T def) {
-    const auto in = FindValue(key);
-    T out = def;
-    return in && ConvertFromValue(&out, in)? out: def;
-  }
-  template <typename T>
-  T FindValueOr(size_t index, T def) {
-    const auto in = FindValue(index);
-    T out = def;
-    return in && ConvertFromValue(&out, in)? out: def;
-  }
-
-
-  const DeserializerRegistry& registry() const {
-    return *registry_;
-  }
-
- private:
-  const DeserializerRegistry* registry_;
-};
-
-
 // This is like a DI container for deserializing.
-class DeserializerRegistry final {
+class Registry final {
  public:
   using Factory =
       std::function<std::unique_ptr<iPolymorphicSerializable>(iDeserializer*)>;
@@ -490,16 +224,16 @@ class DeserializerRegistry final {
   using FactorySet = std::map<std::string, Factory>;
 
 
-  DeserializerRegistry() = delete;
-  explicit DeserializerRegistry(iApp* app) : app_(app) {
+  Registry() = delete;
+  explicit Registry(iApp* app) : app_(app) {
     assert(app_);
   }
 
-  DeserializerRegistry(const DeserializerRegistry&) = delete;
-  DeserializerRegistry(DeserializerRegistry&&) = delete;
+  Registry(const Registry&) = delete;
+  Registry(Registry&&) = delete;
 
-  DeserializerRegistry& operator=(const DeserializerRegistry&) = delete;
-  DeserializerRegistry& operator=(DeserializerRegistry&&) = delete;
+  Registry& operator=(const Registry&) = delete;
+  Registry& operator=(Registry&&) = delete;
 
 
   template <typename I>
@@ -524,30 +258,13 @@ class DeserializerRegistry final {
   }
 
 
+  // Implementation is on the bottom of this file.
   template <typename I>
-  std::unique_ptr<I> Deserialize(
-      iDeserializer* des, const std::string& name) const {
-    static_assert(std::is_base_of<iPolymorphicSerializable, I>::value);
+  std::unique_ptr<I> DeserializeParam(
+      iDeserializer* des, const std::string& type) const;
 
-    auto set = items_.find(typeid(I).hash_code());
-    if (set == items_.end()) {
-      return nullptr;
-    }
-
-    auto factory = set->second.find(name);
-    if (factory == set->second.end()) {
-      return nullptr;
-    }
-
-    auto product = factory->second(des);
-    if (!product) {
-      return nullptr;
-    }
-
-    auto ret = dynamic_cast<I*>(product.release());
-    assert(ret);
-    return std::unique_ptr<I>(ret);
-  }
+  template <typename I>
+  std::unique_ptr<I> Deserialize(iDeserializer* des) const;
 
 
   iApp& app() const {
@@ -559,5 +276,214 @@ class DeserializerRegistry final {
 
   std::map<size_t, FactorySet> items_;
 };
+
+
+// This is an interface of deserializer.
+class iDeserializer {
+ public:
+  using Key = std::variant<size_t, std::string>;
+
+
+  class ScopeGuard final {
+   public:
+    ScopeGuard() = delete;
+    ScopeGuard(iDeserializer* target, const Key& key) : target_(target) {
+      target_->Enter(key);
+    }
+    ~ScopeGuard() {
+      target_->Leave();
+    }
+
+    ScopeGuard(const ScopeGuard&) = delete;
+    ScopeGuard(ScopeGuard&&) = delete;
+
+    ScopeGuard& operator=(const ScopeGuard&) = delete;
+    ScopeGuard& operator=(ScopeGuard&&) = delete;
+
+   private:
+    iDeserializer* target_;
+  };
+
+
+  iDeserializer() = delete;
+  explicit iDeserializer(iLogger* logger, const Registry* registry) :
+      logger_(logger), registry_(registry) {
+    assert(logger_);
+    assert(registry_);
+  }
+  virtual ~iDeserializer() = default;
+
+  iDeserializer(const iDeserializer&) = default;
+  iDeserializer(iDeserializer&&) = default;
+
+  iDeserializer& operator=(const iDeserializer&) = default;
+  iDeserializer& operator=(iDeserializer&&) = default;
+
+
+  // Makes the specified item as a current target. If no such item is found,
+  // value() and size() become to return nothing besides undefined() does true.
+  // You can enter more deeply and recover from this state.
+  void Enter(const Key& key) {
+    if (undefined()) {
+      ++null_depth_;
+    }
+    if (null_depth_ == 0) {
+      stack_.push_back(DoEnter(key));
+    } else {
+      stack_.push_back(key);
+    }
+  }
+  void Leave() {
+    assert(!stack_.empty());
+
+    stack_.pop_back();
+    if (null_depth_) {
+      --null_depth_;
+    } else {
+      DoLeave();
+    }
+  }
+
+
+  // Generates a string expressing location of the current target.
+  // e.g.) 'foo.bar[0].baz'
+  std::string GenerateLocation() const;
+
+  // Writes location of the current target to the logger.
+  void LogLocation() const {
+    logger_->MNCORE_LOGGER_WRITE(
+        iLogger::kAddition, std::string("location: ")+GenerateLocation());
+  }
+
+
+  template <typename I>
+  std::unique_ptr<I> DeserializeObject() {
+    return registry_->Deserialize<I>(this);
+  }
+
+
+  iLogger& logger() const {
+    return *logger_;
+  }
+
+  const Registry& registry() const {
+    return *registry_;
+  }
+  iApp& app() const {
+    return registry_->app();
+  }
+
+
+  const std::vector<Key> stack() const {
+    return stack_;
+  }
+
+
+  template <typename T = std::string>
+  std::optional<T> key() const {
+    if (stack_.empty() || !std::holds_alternative<T>(stack_.back())) {
+      return std::nullopt;
+    }
+    return std::get<T>(stack_.back());
+  }
+
+  template <typename T>
+  std::optional<T> value() const {
+    if (!value_) return std::nullopt;
+    return FromAny<T>(*value_);
+  }
+  template <typename T>
+  T value(T def) const {
+    if (!value_) return def;
+    auto ret = FromAny<T>(*value_);
+    return ret? *ret: def;
+  }
+
+  const std::optional<size_t>& size() const {
+    return size_;
+  }
+  bool undefined() const {
+    return !value_ && !size_;
+  }
+
+ protected:
+  virtual Key DoEnter(const Key&) = 0;
+  virtual void DoLeave() = 0;
+
+  // Subclass should call Set*() methods to update current state from
+  // constructor, DoEnter(), and DoLeave().
+  void SetUndefined() {
+    value_ = std::nullopt;
+    size_  = std::nullopt;
+  }
+  void SetField(const Any& value) {
+    value_ = value;
+    size_  = std::nullopt;
+  }
+  void SetMapOrArray(size_t size) {
+    value_ = std::nullopt;
+    size_  = size;
+  }
+
+ private:
+  iLogger* logger_;
+
+  const Registry* registry_;
+
+  std::vector<Key> stack_;
+  size_t           null_depth_ = 0;
+
+  std::optional<Any>    value_;
+  std::optional<size_t> size_;
+};
+
+
+template <typename I>
+std::unique_ptr<I> Registry::DeserializeParam(
+    iDeserializer* des, const std::string& type) const {
+  static_assert(std::is_base_of<iPolymorphicSerializable, I>::value);
+
+  auto set = items_.find(typeid(I).hash_code());
+  if (set == items_.end()) {
+    const std::string iname = typeid(I).name();
+    des->logger().MNCORE_LOGGER_WARN(
+        "deserializer requested unknown interface: "+iname);
+    des->LogLocation();
+    return nullptr;
+  }
+
+  auto factory = set->second.find(type);
+  if (factory == set->second.end()) {
+    des->logger().MNCORE_LOGGER_WARN(
+        "deserializer requested unknown object: "+type);
+    des->LogLocation();
+    return nullptr;
+  }
+
+  auto product = factory->second(des);
+  if (!product) {
+    des->logger().MNCORE_LOGGER_WARN(
+        "failed to deserialize object: "+type);
+    des->LogLocation();
+    return nullptr;
+  }
+
+  auto ret = dynamic_cast<I*>(product.release());
+  assert(ret);
+  return std::unique_ptr<I>(ret);
+}
+
+template <typename I>
+std::unique_ptr<I> Registry::Deserialize(iDeserializer* des) const {
+  static_assert(std::is_base_of<iPolymorphicSerializable, I>::value);
+
+  des->Enter(std::string("type"));
+  const auto name = des->value<std::string>();
+  des->Leave();
+  if (!name) return nullptr;
+
+  iDeserializer::ScopeGuard _(des, std::string("param"));
+  return DeserializeParam<I>(des, *name);
+}
 
 }  // namespace mnian::core

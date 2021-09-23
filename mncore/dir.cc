@@ -17,7 +17,7 @@ iDirItemObserver::~iDirItemObserver() {
 }
 
 
-std::string iDirItem::ValidateName(const std::string& name) {
+std::optional<std::string> iDirItem::ValidateName(const std::string& name) {
   static const std::string kAllowed =
       "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
   if (name.empty()) {
@@ -28,13 +28,46 @@ std::string iDirItem::ValidateName(const std::string& name) {
       return "invalid char found ('A-Za-z0-9\\-_' are allowed)";
     }
   }
-  return "";
+  return std::nullopt;
 }
 
 
-std::unique_ptr<Dir> Dir::DeserializeParam(iDeserializer*) {
-  // TODO(falsycat)
-  return nullptr;
+Dir::ItemList Dir::DeserializeParam(iDeserializer* des) {
+  const auto size = des->size();
+  if (!size) {
+    des->logger().MNCORE_LOGGER_WARN("item list is not a map");
+    des->LogLocation();
+    return {};
+  }
+
+  ItemList items;
+  for (size_t i = 0; i < *size; ++i) {
+    iDeserializer::ScopeGuard _(des, i);
+
+    const auto name = des->key();
+    if (!name) {
+      des->logger().MNCORE_LOGGER_WARN("no string key specified for dir item");
+      des->logger().MNCORE_LOGGER_INFO("skipping the item...");
+      des->LogLocation();
+      continue;
+    }
+
+    auto err = iDirItem::ValidateName(*name);
+    if (err) {
+      des->logger().MNCORE_LOGGER_WARN(
+          "no valid name specified for dir item: "+*err);
+      des->logger().MNCORE_LOGGER_INFO("skipping the item...");
+      des->LogLocation();
+      continue;
+    }
+
+    auto item = des->DeserializeObject<iDirItem>();
+    if (!item) continue;
+
+    item->Rename(*name);
+    items.push_back(std::move(item));
+  }
+  return items;
 }
 
 void Dir::SerializeParam(iSerializer* serializer) const {
@@ -44,11 +77,6 @@ void Dir::SerializeParam(iSerializer* serializer) const {
   }
 }
 
-
-std::unique_ptr<FileRef> FileRef::DeserializeParam(iDeserializer*) {
-  // TODO(falsycat)
-  return nullptr;
-}
 
 void FileRef::SerializeParam(iSerializer* serializer) const {
   iSerializer::MapGuard map(serializer);

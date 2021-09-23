@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -84,12 +85,12 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
   friend class iDirItemObserver;
 
 
-  // Returns a reason on failure, or an empty on success.
-  static std::string ValidateName(const std::string& name);
+  // Returns a reason on failure, or std::nullopt on success.
+  static std::optional<std::string> ValidateName(const std::string& name);
 
 
   iDirItem() = delete;
-  explicit iDirItem(ActionList&& actions, const char* type) :
+  iDirItem(ActionList&& actions, const char* type) :
       iActionable(std::move(actions)),
       iPolymorphicSerializable(type) {
   }
@@ -110,7 +111,7 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
   // Returns if the rename is done successfully.
   // Validation and  duplication check with siblings must be done in advance.
   void Rename(const std::string& name) {
-    assert(ValidateName(name).empty());
+    assert(!ValidateName(name));
     if (name == name_) return;
 
     name_ = name;
@@ -152,19 +153,16 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
 // Dir is a DirItem which owns child DirItems.
 class Dir : public iDirItem {
  public:
-  static constexpr const char* kType = "Dir";
+  using ItemList = std::vector<std::unique_ptr<iDirItem>>;
 
-
-  static std::unique_ptr<Dir> DeserializeParam(iDeserializer*);
-
-  static void Register(DeserializerRegistry* reg) {
-    assert(reg);
-    reg->RegisterType<iDirItem, Dir>();
-  }
+  static ItemList DeserializeParam(iDeserializer*);
 
 
   Dir() = delete;
-  explicit Dir(ActionList&& actions) : iDirItem(std::move(actions), kType) {
+  explicit Dir(
+      ActionList&& actions, const char* type = "Dir", ItemList&& items = {}) :
+      iDirItem(std::move(actions), type), items_(std::move(items)) {
+    for (auto& item : items_) AttachSelf(item.get());
   }
   ~Dir() {
     while (items_.size()) RemoveByIndex(0);
@@ -191,11 +189,10 @@ class Dir : public iDirItem {
   // Name duplication check must be done in advance.
   iDirItem* Add(std::unique_ptr<iDirItem>&& item) {
     assert(item);
-    assert(!item->parent_);
-
-    item->parent_ = this;
 
     iDirItem* ptr = item.get();
+    AttachSelf(ptr);
+
     items_.push_back(std::move(item));
 
     Touch();
@@ -263,6 +260,11 @@ class Dir : public iDirItem {
   void SerializeParam(iSerializer* serializer) const override;
 
  private:
+  void AttachSelf(iDirItem* item) {
+    assert(!item->parent_);
+    item->parent_ = this;
+  }
+
   std::unique_ptr<iDirItem> RemoveQuietly(size_t index) {
     assert(index < items_.size());
 
@@ -275,7 +277,7 @@ class Dir : public iDirItem {
   }
 
 
-  std::vector<std::unique_ptr<iDirItem>> items_;
+  ItemList items_;
 };
 
 
@@ -290,22 +292,14 @@ class FileRef : public iDirItem {
   using Flags = uint16_t;
 
 
-  static constexpr const char* kType = "FileRef";
-
-
-  static std::unique_ptr<FileRef> DeserializeParam(iDeserializer*);
-
-  static void Register(DeserializerRegistry* reg) {
-    assert(reg);
-    reg->RegisterType<iDirItem, FileRef>();
-  }
-
-
   FileRef() = delete;
-  FileRef(ActionList&& actions, iFile* file, Flags flags) :
-      iDirItem(std::move(actions), kType),
+  FileRef(ActionList&& actions, const char* type, iFile* file, Flags flags) :
+      iDirItem(std::move(actions), type),
       file_(file), flags_(flags), observer_(this, file) {
     assert(file_);
+  }
+  FileRef(ActionList&& actions, iFile* file, Flags flags) :
+      FileRef(std::move(actions), "FileRef", file, flags) {
   }
 
   FileRef(const FileRef&) = delete;

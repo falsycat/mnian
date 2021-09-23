@@ -5,6 +5,7 @@
 
 #include <gmock/gmock.h>
 
+#include <memory>
 #include <string>
 
 
@@ -28,6 +29,12 @@ class MockSerializable : public core::iSerializable {
 class MockPolymorphicSerializable : public core::iPolymorphicSerializable {
  public:
   static constexpr const char* kType = "MockPolymorphic";
+
+
+  static std::unique_ptr<MockPolymorphicSerializable>
+      DeserializeParam(core::iDeserializer*) {
+    return std::make_unique<MockPolymorphicSerializable>();
+  }
 
 
   MockPolymorphicSerializable() : iPolymorphicSerializable(kType) {
@@ -59,14 +66,14 @@ class MockSerializer : public core::iSerializer {
   MOCK_METHOD(void, SerializeMap, (size_t), (override));
   MOCK_METHOD(void, SerializeArray, (size_t), (override));
   MOCK_METHOD(void, SerializeKey, (const std::string&), (override));
-  MOCK_METHOD(void, SerializeValue, (const Value&), (override));
+  MOCK_METHOD(void, SerializeValue, (const core::Any&), (override));
 };
 
 class MockDeserializer : public core::iDeserializer {
  public:
   MockDeserializer() = delete;
-  explicit MockDeserializer(const core::DeserializerRegistry& reg) :
-      iDeserializer(reg) {
+  explicit MockDeserializer(core::iLogger* logger, const core::Registry* reg) :
+      iDeserializer(logger, reg) {
   }
 
   MockDeserializer(const MockDeserializer&) = delete;
@@ -76,12 +83,13 @@ class MockDeserializer : public core::iDeserializer {
   MockDeserializer& operator=(MockDeserializer&&) = delete;
 
 
-  MOCK_METHOD(bool, EnterByKey, (const std::string&), (override));
-  MOCK_METHOD(bool, EnterByIndex, (size_t), (override));
-  MOCK_METHOD(void, Leave, (), (override));
+  MOCK_METHOD(Key, DoEnter, (const Key&), (override));
+  MOCK_METHOD(void, DoLeave, (), (override));
 
-  MOCK_METHOD(std::optional<Value>, value, (), (const override));
-  MOCK_METHOD(std::optional<size_t>, size, (), (const override));
+
+  using iDeserializer::SetUndefined;
+  using iDeserializer::SetField;
+  using iDeserializer::SetMapOrArray;
 };
 
 }  // namespace mnian::test

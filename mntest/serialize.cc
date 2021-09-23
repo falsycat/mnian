@@ -9,6 +9,7 @@
 #include <variant>
 
 #include "mntest/app.h"
+#include "mntest/logger.h"
 
 
 namespace mnian::test {
@@ -22,8 +23,8 @@ TEST(iPolymorphicSerializable, Serialize) {
     EXPECT_CALL(serializer, SerializeKey("type"));
     EXPECT_CALL(
         serializer,
-        SerializeValue(core::iSerializer::Value(
-                std::string(MockPolymorphicSerializable::kType))));
+        SerializeValue(
+            core::Any(std::string(MockPolymorphicSerializable::kType))));
     EXPECT_CALL(serializer, SerializeKey("param"));
 
     EXPECT_CALL(serializable, SerializeParam(&serializer));
@@ -31,108 +32,197 @@ TEST(iPolymorphicSerializable, Serialize) {
   serializable.Serialize(&serializer);
 }
 
-TEST(iDeserializer, ValueConversionToSigned) {
-  using core::iDeserializer;
+TEST(iDeserializer, SetUndefined) {
+  ::testing::StrictMock<MockApp> app;
+  core::Registry reg(&app);
+  MockLogger logger;
 
-  int32_t i32;
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&i32, int64_t{-1}));
-  ASSERT_EQ(i32, int32_t{-1});
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&i32, -1.5));
-  ASSERT_EQ(i32, int32_t{-1});
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&i32, std::string("-1")));
-  ASSERT_EQ(i32, int32_t{-1});
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&i32, int64_t{INT32_MAX}));
-  ASSERT_EQ(i32, INT32_MAX);
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&i32, int64_t{INT32_MIN}));
-  ASSERT_EQ(i32, INT32_MIN);
+  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
+  deserializer.SetMapOrArray(0);
 
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&i32, int64_t{INT64_MAX}));
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&i32, int64_t{0x80000000}));
+  EXPECT_CALL(deserializer,
+              DoEnter(core::iDeserializer::Key(std::string("key")))).
+      WillOnce([&](auto key) {
+                 deserializer.SetUndefined();
+                 return key;
+               });
+  deserializer.Enter(std::string("key"));
 
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(
-          &i32, std::string("helloworld")));
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(
-          &i32, std::string("1abc")));
+  ASSERT_EQ(deserializer.key(), std::string("key"));
+  ASSERT_FALSE(deserializer.key<size_t>());
+
+  ASSERT_FALSE(deserializer.value<int64_t>());
+  ASSERT_FALSE(deserializer.value<double>());
+  ASSERT_FALSE(deserializer.value<std::string>());
+  ASSERT_FALSE(deserializer.value<bool>());
+  ASSERT_FALSE(deserializer.size());
+  ASSERT_TRUE(deserializer.undefined());
+}
+TEST(iDeserializer, SetField) {
+  ::testing::StrictMock<MockApp> app;
+  core::Registry reg(&app);
+  MockLogger logger;
+
+  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
+  deserializer.SetMapOrArray(0);
+
+  EXPECT_CALL(deserializer, DoEnter(core::iDeserializer::Key(size_t{0}))).
+      WillOnce([&](auto key) {
+                 deserializer.SetField(std::string("helloworld"));
+                 return key;
+               });
+  deserializer.Enter(size_t{0});
+
+  ASSERT_FALSE(deserializer.key());
+  ASSERT_EQ(deserializer.key<size_t>(), size_t{0});
+
+  ASSERT_FALSE(deserializer.value<int64_t>());
+  ASSERT_FALSE(deserializer.value<double>());
+  ASSERT_EQ(deserializer.value<std::string>(), std::string("helloworld"));
+  ASSERT_FALSE(deserializer.value<bool>());
+  ASSERT_FALSE(deserializer.size());
+  ASSERT_FALSE(deserializer.undefined());
+}
+TEST(iDeserializer, SetMapOrArray) {
+  ::testing::StrictMock<MockApp> app;
+  core::Registry reg(&app);
+  MockLogger logger;
+
+  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
+  deserializer.SetMapOrArray(0);
+
+  EXPECT_CALL(deserializer, DoEnter(core::iDeserializer::Key(size_t{0}))).
+      WillOnce([&](auto key) {
+                 deserializer.SetMapOrArray(1);
+                 return key;
+               });
+  deserializer.Enter(size_t{0});
+
+  ASSERT_FALSE(deserializer.key());
+  ASSERT_EQ(deserializer.key<size_t>(), size_t{0});
+
+  ASSERT_FALSE(deserializer.value<int64_t>());
+  ASSERT_FALSE(deserializer.value<double>());
+  ASSERT_FALSE(deserializer.value<std::string>());
+  ASSERT_FALSE(deserializer.value<bool>());
+  ASSERT_EQ(deserializer.size(), size_t{1});
+  ASSERT_FALSE(deserializer.undefined());
 }
 
-TEST(iDeserializer, ValueConversionToUnsigned) {
-  using core::iDeserializer;
+TEST(iDeserializer, EnterUndefined) {
+  ::testing::StrictMock<MockApp> app;
+  core::Registry reg(&app);
+  MockLogger logger;
 
-  uint32_t u32;
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&u32, int64_t{1}));
-  ASSERT_EQ(u32, uint32_t{1});
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&u32, 1.5));
-  ASSERT_EQ(u32, uint32_t{1});
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&u32, std::string("1")));
-  ASSERT_EQ(u32, uint32_t{1});
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&u32, int64_t{UINT32_MAX}));
-  ASSERT_EQ(u32, UINT32_MAX);
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&u32, int64_t{0}));
-  ASSERT_EQ(u32, uint32_t{0});
+  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
 
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&u32, int64_t{-1}));
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&u32, -1.5));
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&u32, std::string("-1")));
+  ASSERT_TRUE(deserializer.undefined());
+  ASSERT_FALSE(deserializer.key());
 
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&u32, int64_t{0x100000000}));
+  deserializer.Enter(std::string("helloworld"));
+  ASSERT_TRUE(deserializer.undefined());
+  ASSERT_EQ(deserializer.key(), std::string("helloworld"));
 
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(
-          &u32, std::string("helloworld")));
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&u32, std::string("1abc")));
+  deserializer.Enter(size_t{0});
+  ASSERT_TRUE(deserializer.undefined());
+  ASSERT_EQ(deserializer.key<size_t>(), size_t{0});
+
+  deserializer.Leave();
+  ASSERT_TRUE(deserializer.undefined());
+  ASSERT_EQ(deserializer.key(), std::string("helloworld"));
+
+  deserializer.Enter(size_t{1});
+  ASSERT_TRUE(deserializer.undefined());
+  ASSERT_EQ(deserializer.key<size_t>(), size_t{1});
+
+  deserializer.Leave();
+  ASSERT_TRUE(deserializer.undefined());
+  ASSERT_EQ(deserializer.key(), std::string("helloworld"));
+
+  deserializer.Leave();
+  ASSERT_TRUE(deserializer.undefined());
+  ASSERT_FALSE(deserializer.key());
 }
 
-TEST(iDeserializer, ValueConversionToFloating) {
-  using core::iDeserializer;
+TEST(iDeserializer, GenerateLocation) {
+  ::testing::StrictMock<MockApp> app;
+  core::Registry reg(&app);
+  MockLogger logger;
 
-  double f;
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&f, int64_t{1}));
-  ASSERT_EQ(f, 1.);
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&f, 1.1));
-  ASSERT_EQ(f, 1.1);
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&f, std::string("1.1")));
-  ASSERT_EQ(f, 1.1);
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&f, std::string("1.1e+3")));
-  ASSERT_EQ(f, 1.1e+3);
+  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
+  ASSERT_EQ(deserializer.GenerateLocation(), "");
 
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&f, std::string("helloworld")));
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&f, std::string("NaN")));
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&f, std::string("INF")));
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&f, std::string("+INF")));
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&f, std::string("-INF")));
+  deserializer.Enter(std::string("helloworld"));
+  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld");
+
+  deserializer.Enter(size_t{0});
+  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld[0]");
+
+  deserializer.Enter(std::string("hoge"));
+  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld[0].hoge");
+
+  deserializer.Enter(std::string("fuga"));
+  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld[0].hoge.fuga");
+
+  deserializer.Leave();
+  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld[0].hoge");
+
+  deserializer.Leave();
+  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld[0]");
+
+  deserializer.Leave();
+  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld");
+
+  deserializer.Enter(size_t{1});
+  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld[1]");
+
+  deserializer.Leave();
+  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld");
+
+  deserializer.Leave();
+  ASSERT_EQ(deserializer.GenerateLocation(), "");
 }
 
-TEST(iDeserializer, ValueConversionToBool) {
-  using core::iDeserializer;
+TEST(iDeserializer_ScopeGuard, EnterIndex) {
+  ::testing::StrictMock<MockApp> app;
+  core::Registry reg(&app);
+  MockLogger logger;
 
-  bool b;
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&b, std::string("true")));
-  ASSERT_TRUE(b);
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&b, std::string("false")));
-  ASSERT_FALSE(b);
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&b, bool{true}));
-  ASSERT_TRUE(b);
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&b, bool{false}));
-  ASSERT_FALSE(b);
+  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
+  deserializer.SetMapOrArray(0);
+  {
+    ::testing::InSequence seq_;
 
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&b, std::string("helloworld")));
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&b, int64_t{1}));
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&b, 1.));
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&b, std::string("TRUE")));
-  ASSERT_FALSE(iDeserializer::ConvertFromValue(&b, std::string("FALSE")));
+    EXPECT_CALL(deserializer, DoEnter(core::iDeserializer::Key(size_t{0}))).
+        WillOnce([&](auto key) {
+                   deserializer.SetMapOrArray(1);
+                   return key;
+                 });
+    EXPECT_CALL(deserializer, DoLeave());
+  }
+
+  core::iDeserializer::ScopeGuard _(&deserializer, size_t{0});
 }
+TEST(iDeserializer_ScopeGuard, EnterString) {
+  ::testing::StrictMock<MockApp> app;
+  core::Registry reg(&app);
+  MockLogger logger;
 
-TEST(iDeserializer, ValueConversionToString) {
-  using core::iDeserializer;
+  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
+  deserializer.SetMapOrArray(0);
+  {
+    ::testing::InSequence seq_;
 
-  std::string s;
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&s, std::string("helloworld")));
-  ASSERT_EQ(s, "helloworld");
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&s, int64_t{-1}));
-  ASSERT_EQ(s, "-1");
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&s, 1.1));
-  ASSERT_EQ(s.substr(0, 3), "1.1");  // Actually "1.10000..." is stored.
-  ASSERT_TRUE(iDeserializer::ConvertFromValue(&s, bool{true}));
-  ASSERT_EQ(s, "true");
+    EXPECT_CALL(deserializer,
+                DoEnter(core::iDeserializer::Key(std::string("key1")))).
+        WillOnce([&](auto key) {
+                   deserializer.SetMapOrArray(1);
+                   return key;
+                 });
+    EXPECT_CALL(deserializer, DoLeave());
+  }
+
+  core::iDeserializer::ScopeGuard _(&deserializer, std::string("key1"));
 }
 
 
@@ -149,16 +239,14 @@ TEST(iSerializer_MapGuard, SimpleAdd) {
     EXPECT_CALL(serializer, SerializeMap(3));
 
     EXPECT_CALL(serializer, SerializeKey("key1"));
-    EXPECT_CALL(
-        serializer, SerializeValue(core::iSerializer::Value(int64_t{1})));
+    EXPECT_CALL(serializer, SerializeValue(core::Any(int64_t{1})));
 
     EXPECT_CALL(serializer, SerializeKey("key2"));
     EXPECT_CALL(
-        serializer,
-        SerializeValue(core::iSerializer::Value(std::string("helloworld"))));
+        serializer, SerializeValue(core::Any(std::string("helloworld"))));
 
     EXPECT_CALL(serializer, SerializeKey("key3"));
-    EXPECT_CALL(serializer, SerializeValue(core::iSerializer::Value(1.5)));
+    EXPECT_CALL(serializer, SerializeValue(core::Any(1.5)));
   }
 }
 
@@ -242,12 +330,10 @@ TEST(iSerializer_ArrayGuard, SimpleAdd) {
 
     EXPECT_CALL(serializer, SerializeArray(3));
 
+    EXPECT_CALL(serializer, SerializeValue(core::Any(int64_t{1})));
     EXPECT_CALL(
-        serializer, SerializeValue(core::iSerializer::Value(int64_t{1})));
-    EXPECT_CALL(
-        serializer,
-        SerializeValue(core::iSerializer::Value(std::string("helloworld"))));
-    EXPECT_CALL(serializer, SerializeValue(core::iSerializer::Value(1.5)));
+        serializer, SerializeValue(core::Any(std::string("helloworld"))));
+    EXPECT_CALL(serializer, SerializeValue(core::Any(1.5)));
   }
 }
 
@@ -304,23 +390,25 @@ TEST(iSerializer_ArrayGuard, RecursiveAdd) {
 }
 
 
-TEST(DeserializerRegistry, RegisterFactory) {
+TEST(Registry, RegisterFactory) {
   ::testing::StrictMock<MockApp> app;
-  core::DeserializerRegistry reg(&app);
+  core::Registry reg(&app);
+  MockLogger logger;
 
   reg.RegisterFactory<core::iPolymorphicSerializable>(
       MockPolymorphicSerializable::kType,
       [](auto) { return std::make_unique<MockPolymorphicSerializable>(); });
 
-  ::testing::StrictMock<MockDeserializer> deserializer(reg);
+  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
+  deserializer.SetMapOrArray(0);
 
-  auto product = reg.Deserialize<core::iPolymorphicSerializable>(
+  auto product = reg.DeserializeParam<core::iPolymorphicSerializable>(
       &deserializer, MockPolymorphicSerializable::kType);
   ASSERT_TRUE(product);
   ASSERT_TRUE(dynamic_cast<MockPolymorphicSerializable*>(product.get()));
 
-  ASSERT_FALSE(
-      reg.Deserialize<core::iPolymorphicSerializable>(&deserializer, "hello"));
+  ASSERT_FALSE(reg.DeserializeParam<core::iPolymorphicSerializable>(
+          &deserializer, "hello"));
 }
 
 namespace {
@@ -338,23 +426,74 @@ class TestSerializable : public core::iPolymorphicSerializable {
   void SerializeParam(core::iSerializer*) const override {
   }
 };
-TEST(DeserializerRegistry, RegisterType) {
+TEST(Registry, RegisterType) {
   ::testing::StrictMock<MockApp> app;
-  core::DeserializerRegistry reg(&app);
+  core::Registry reg(&app);
+  MockLogger logger;
 
   reg.RegisterType<core::iPolymorphicSerializable, TestSerializable>();
 
-  ::testing::StrictMock<MockDeserializer> deserializer(reg);
+  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
+  deserializer.SetMapOrArray(0);
 
-  auto product = reg.Deserialize<core::iPolymorphicSerializable>(
+  auto product = reg.DeserializeParam<core::iPolymorphicSerializable>(
       &deserializer, TestSerializable::kType);
   ASSERT_TRUE(product);
   ASSERT_TRUE(dynamic_cast<TestSerializable*>(product.get()));
 
-  ASSERT_FALSE(
-      reg.Deserialize<core::iPolymorphicSerializable>(&deserializer, "hello"));
+  ASSERT_FALSE(reg.DeserializeParam<core::iPolymorphicSerializable>(
+          &deserializer, "hello"));
 }
 
 }  // namespace
+
+TEST(Registry, Deserialize) {
+  ::testing::StrictMock<MockApp> app;
+  core::Registry reg(&app);
+  MockLogger logger;
+
+  reg.RegisterType<
+      core::iPolymorphicSerializable, MockPolymorphicSerializable>();
+
+  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
+  deserializer.SetMapOrArray(0);
+
+  EXPECT_CALL(deserializer, DoEnter(::testing::_)).
+      Times(2).
+      WillOnce([&](auto key) {
+                 deserializer.SetField(
+                     std::string(MockPolymorphicSerializable::kType));
+                 return key;
+               }).
+      WillOnce([&](auto key) {
+                 deserializer.SetField(int64_t{0});
+                 return key;
+               });
+  EXPECT_CALL(deserializer, DoLeave()).Times(2);
+
+  auto product =
+      deserializer.DeserializeObject<core::iPolymorphicSerializable>();
+  ASSERT_TRUE(product);
+  ASSERT_TRUE(dynamic_cast<MockPolymorphicSerializable*>(product.get()));
+}
+
+TEST(Registry, DeserializeInvalid) {
+  ::testing::StrictMock<MockApp> app;
+  core::Registry reg(&app);
+  MockLogger logger;
+
+  reg.RegisterType<
+      core::iPolymorphicSerializable, MockPolymorphicSerializable>();
+
+  ::testing::NiceMock<MockDeserializer> deserializer(&logger, &reg);
+  deserializer.SetMapOrArray(0);
+
+  EXPECT_CALL(deserializer, DoEnter(::testing::_));
+  EXPECT_CALL(deserializer, DoLeave());
+
+  auto product =
+      deserializer.DeserializeObject<core::iPolymorphicSerializable>();
+  ASSERT_FALSE(product);
+}
 
 }  // namespace mnian::test

@@ -17,15 +17,15 @@
 namespace mnian::test {
 
 TEST(iDirItem, ValidateName) {
-  ASSERT_EQ(core::iDirItem::ValidateName("helloworld"), "");
-  ASSERT_EQ(core::iDirItem::ValidateName("hello-world"), "");
-  ASSERT_EQ(core::iDirItem::ValidateName("hello_world"), "");
-  ASSERT_EQ(core::iDirItem::ValidateName("hello-world-0123"), "");
-  ASSERT_EQ(core::iDirItem::ValidateName("hello_world_0123"), "");
+  ASSERT_FALSE(core::iDirItem::ValidateName("helloworld"));
+  ASSERT_FALSE(core::iDirItem::ValidateName("hello-world"));
+  ASSERT_FALSE(core::iDirItem::ValidateName("hello_world"));
+  ASSERT_FALSE(core::iDirItem::ValidateName("hello-world-0123"));
+  ASSERT_FALSE(core::iDirItem::ValidateName("hello_world_0123"));
 
-  ASSERT_FALSE(core::iDirItem::ValidateName("").empty());
-  ASSERT_FALSE(core::iDirItem::ValidateName("hello world").empty());
-  ASSERT_FALSE(core::iDirItem::ValidateName("にゃんにゃん").empty());
+  ASSERT_TRUE(core::iDirItem::ValidateName(""));
+  ASSERT_TRUE(core::iDirItem::ValidateName("hello world"));
+  ASSERT_TRUE(core::iDirItem::ValidateName("にゃんにゃん"));
 }
 
 TEST(iDirItem, Rename) {
