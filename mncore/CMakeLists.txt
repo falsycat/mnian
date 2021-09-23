@@ -7,6 +7,7 @@ target_sources(mncore
     action.h
     dir.h
     file.h
+    logger.h
     serialize.h
   PRIVATE
     dir.cc
