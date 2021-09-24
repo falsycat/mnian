@@ -5,6 +5,7 @@ target_include_directories(mncore PRIVATE "${PROJECT_SOURCE_DIR}")
 target_sources(mncore
   PUBLIC
     action.h
+    conv.h
     dir.h
     file.h
     logger.h
