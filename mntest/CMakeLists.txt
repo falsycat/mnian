@@ -21,6 +21,8 @@ target_sources(mntest
     dir.h
     file.cc
     file.h
+    history.cc
+    history.h
     logger.cc
     logger.h
     serialize.cc

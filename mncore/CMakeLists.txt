@@ -17,5 +17,6 @@ target_sources(mncore
     command.cc
     dir.cc
     file.cc
+    history.cc
     serialize.cc
 )
