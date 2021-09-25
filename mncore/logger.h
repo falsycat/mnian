@@ -65,10 +65,10 @@ class BroadcastLogger : public iLogger {
   BroadcastLogger() = default;
 
   BroadcastLogger(const BroadcastLogger&) = delete;
-  BroadcastLogger(BroadcastLogger&&) = delete;
+  BroadcastLogger(BroadcastLogger&&) = default;
 
   BroadcastLogger& operator=(const BroadcastLogger&) = delete;
-  BroadcastLogger& operator=(BroadcastLogger&&) = delete;
+  BroadcastLogger& operator=(BroadcastLogger&&) = default;
 
 
   void Write(Level level, const std::string& msg, SrcLoc loc) override {
@@ -93,6 +93,22 @@ class BroadcastLogger : public iLogger {
 
  private:
   std::vector<iLogger*> subscribers_;
+};
+
+
+class NullLogger : public iLogger {
+ public:
+  NullLogger() = default;
+
+  NullLogger(const NullLogger&) = default;
+  NullLogger(NullLogger&&) = default;
+
+  NullLogger& operator=(const NullLogger&) = default;
+  NullLogger& operator=(NullLogger&&) = default;
+
+
+  void Write(Level, const std::string&, SrcLoc) override {
+  }
 };
 
 }  // namespace mnian::core
