@@ -6,12 +6,14 @@ target_sources(mncore
   PUBLIC
     action.h
     app.h
+    command.h
     conv.h
     dir.h
     file.h
     logger.h
     serialize.h
   PRIVATE
+    command.cc
     dir.cc
     file.cc
     serialize.cc

@@ -14,6 +14,8 @@ target_sources(mntest
     action.cc
     action.h
     app.h
+    command.cc
+    command.h
     conv.cc
     dir.cc
     dir.h
