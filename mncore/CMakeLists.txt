@@ -6,6 +6,7 @@ target_sources(mncore
   PUBLIC
     action.h
     app.h
+    clock.h
     command.h
     conv.h
     dir.h
