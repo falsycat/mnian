@@ -100,18 +100,14 @@ class History : public iSerializable {
     return *clock_;
   }
 
-  HistoryItem& items(ItemId id) {
-    return *items_[id];
+  const ItemMap& items() const {
+    return items_;
   }
   HistoryItem& root() const {
     return *root_;
   }
   HistoryItem& head() const {
     return *head_;
-  }
-
-  size_t size() const {
-    return items_.size();
   }
 
  private:
@@ -142,6 +138,8 @@ class HistoryItem : public iSerializable {
 
 
   using Id = History::ItemId;
+
+  using ItemList = std::vector<HistoryItem*>;
 
 
   // Constructor is private.
@@ -275,12 +273,8 @@ class HistoryItem : public iSerializable {
     assert(parent_);
     return *parent_;
   }
-  HistoryItem& branch(size_t i) const {
-    assert(i < branch_.size());
-    return *branch_[i];
-  }
-  size_t branchSize() const {
-    return branch_.size();
+  const ItemList& branch() const {
+    return branch_;
   }
 
  private:
@@ -320,7 +314,7 @@ class HistoryItem : public iSerializable {
 
   HistoryItem* parent_ = nullptr;
 
-  std::vector<HistoryItem*> branch_;
+  ItemList branch_;
 };
 
 }  // namespace mnian::core

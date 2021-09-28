@@ -72,7 +72,7 @@ TEST(Dir, Add) {
   }
 
   for (size_t i = 0; i < kCount; ++i) {
-    ASSERT_EQ(&dir[i], subdirs[i]);
+    ASSERT_EQ(&dir.items(i), subdirs[i]);
   }
 }
 
@@ -106,7 +106,7 @@ TEST(Dir, Remove) {
     ASSERT_EQ(dir.size(), kCount-i-1);
 
     for (size_t j = 0; j < kCount-i-1; ++j) {
-      ASSERT_EQ(&dir[j], subdirs[j]);
+      ASSERT_EQ(&dir.items(j), subdirs[j]);
     }
   }
 }
@@ -144,12 +144,12 @@ TEST(Dir, Move) {
   for (size_t i = 0; i < kCount; ++i) {
     const size_t index = rnd()%(kCount-i);
 
-    auto ptr = &src[index];
+    auto ptr = &src.items(index);
     subdirs.push_back(ptr);
     src.Move(ptr, &dst);
   }
   for (size_t i = 0; i < kCount; ++i) {
-    ASSERT_EQ(&dst[i], subdirs[i]);
+    ASSERT_EQ(&dst.items(i), subdirs[i]);
   }
 }
 
@@ -171,12 +171,12 @@ TEST(Dir, FindIndexOf) {
   for (auto& name : kNames) {
     auto index = dir.FindIndexOf(name);
     ASSERT_TRUE(index);
-    ASSERT_EQ(&dir[*index], subdirs[name]);
+    ASSERT_EQ(&dir.items(*index), subdirs[name]);
   }
   for (auto& pair : subdirs) {
     auto index = dir.FindIndexOf(pair.second);
     ASSERT_TRUE(index);
-    ASSERT_EQ(&dir[*index], pair.second);
+    ASSERT_EQ(&dir.items(*index), pair.second);
   }
 }
 

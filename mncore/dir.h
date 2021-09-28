@@ -174,11 +174,6 @@ class Dir : public iDirItem {
   Dir& operator=(const Dir&) = delete;
   Dir& operator=(Dir&&) = delete;
 
-  iDirItem& operator[](size_t index) const {
-    assert(index < items_.size());
-    return *items_[index];
-  }
-
 
   void Visit(iDirItemVisitor* visitor) override {
     assert(visitor);
@@ -252,6 +247,9 @@ class Dir : public iDirItem {
   }
 
 
+  iDirItem& items(size_t index) const {
+    return *items_[index];
+  }
   size_t size() const {
     return items_.size();
   }
