@@ -13,6 +13,7 @@ target_sources(mncore
     file.h
     logger.h
     serialize.h
+    task.h
   PRIVATE
     command.cc
     dir.cc

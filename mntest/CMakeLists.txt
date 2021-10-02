@@ -27,9 +27,9 @@ target_sources(mntest
     logger.h
     serialize.cc
     serialize.h
+    task.cc
+    task.h
 )
 
-add_test(NAME mntest COMMAND mntest)
-
 include(GoogleTest)
-gtest_discover_tests(mntest)
+gtest_discover_tests(mntest PROPERTIES TIMEOUT 30)
