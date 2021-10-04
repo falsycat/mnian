@@ -13,6 +13,7 @@ target_sources(mncore
     editor.h
     file.h
     logger.h
+    node.h
     serialize.h
     task.h
   PRIVATE

@@ -25,6 +25,8 @@ target_sources(mntest
     history.h
     logger.cc
     logger.h
+    node.cc
+    node.h
     serialize.cc
     serialize.h
     task.cc

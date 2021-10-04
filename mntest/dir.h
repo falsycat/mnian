@@ -20,7 +20,8 @@ class MockDirItemVisitor : public core::iDirItemVisitor {
 
 
   MOCK_METHOD(void, VisitDir, (core::Dir*), (override));
-  MOCK_METHOD(void, VisitFile, (core::iFile*), (override));
+  MOCK_METHOD(void, VisitFile, (core::FileRef*), (override));
+  MOCK_METHOD(void, VisitNode, (core::NodeRef*), (override));
 };
 
 class MockDirItemObserver : public core::iDirItemObserver {

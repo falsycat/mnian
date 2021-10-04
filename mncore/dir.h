@@ -14,6 +14,7 @@
 
 #include "mncore/action.h"
 #include "mncore/file.h"
+#include "mncore/node.h"
 #include "mncore/serialize.h"
 
 
@@ -21,6 +22,8 @@ namespace mnian::core {
 
 class iDirItem;
 class Dir;
+class FileRef;
+class NodeRef;
 
 
 class iDirItemVisitor {
@@ -36,7 +39,8 @@ class iDirItemVisitor {
 
 
   virtual void VisitDir(Dir*) = 0;
-  virtual void VisitFile(iFile*) = 0;
+  virtual void VisitFile(FileRef*) = 0;
+  virtual void VisitNode(NodeRef*) = 0;
 };
 
 
@@ -290,10 +294,13 @@ class FileRef : public iDirItem {
   using Flags = uint16_t;
 
 
+  // TODO(falsycat): add deserialize method
+
+
   FileRef() = delete;
   FileRef(ActionList&& actions, const char* type, iFile* file, Flags flags) :
       iDirItem(std::move(actions), type),
-      file_(file), flags_(flags), observer_(this, file) {
+      file_(file), flags_(flags), observer_(this) {
     assert(file_);
   }
   FileRef(ActionList&& actions, iFile* file, Flags flags) :
@@ -308,7 +315,7 @@ class FileRef : public iDirItem {
 
 
   void Visit(iDirItemVisitor* visitor) override {
-    visitor->VisitFile(file_);
+    visitor->VisitFile(this);
   }
 
 
@@ -351,9 +358,9 @@ class FileRef : public iDirItem {
  private:
   class FileObserver : public iFileObserver {
    public:
-    FileObserver(FileRef* owner, iFile* file) :
-        iFileObserver(file), owner_(owner) {
-      assert(owner);
+    explicit FileObserver(FileRef* owner) :
+        iFileObserver(&owner->entity()), owner_(owner) {
+      assert(owner_);
     }
 
     void ObserveUpdate() override {
@@ -364,11 +371,71 @@ class FileRef : public iDirItem {
     FileRef* owner_;
   };
 
+
   iFile* file_;
 
   Flags flags_;
 
   FileObserver observer_;
+};
+
+
+// FileRef is a DirItem which wraps iNode object.
+class NodeRef : public iDirItem {
+ public:
+  // TODO(falsycat): add deserialize method
+
+
+  NodeRef() = delete;
+  NodeRef(ActionList&&             actions,
+          const char*              type,
+          std::unique_ptr<iNode>&& node) :
+      iDirItem(std::move(actions), type),
+      node_(std::move(node)), observer_(this) {
+    assert(node_);
+  }
+  NodeRef(ActionList&& actions, std::unique_ptr<iNode>&& file) :
+      NodeRef(std::move(actions), "NodeRef", std::move(file)) {
+  }
+
+  NodeRef(const NodeRef&) = delete;
+  NodeRef(NodeRef&&) = delete;
+
+  NodeRef& operator=(const NodeRef&) = delete;
+  NodeRef& operator=(NodeRef&&) = delete;
+
+
+  void Visit(iDirItemVisitor* visitor) override {
+    visitor->VisitNode(this);
+  }
+
+  iNode& entity() const {
+    return *node_;
+  }
+
+ protected:
+  void SerializeParam(iSerializer*) const override;
+
+ private:
+  class NodeObserver : public iNodeObserver {
+   public:
+    explicit NodeObserver(NodeRef* owner) :
+        iNodeObserver(&owner->entity()), owner_(owner) {
+      assert(owner_);
+    }
+
+    void ObserveUpdate() override {
+      owner_->Touch();
+    }
+
+   private:
+    NodeRef* owner_;
+  };
+
+
+  std::unique_ptr<iNode> node_;
+
+  NodeObserver observer_;
 };
 
 }  // namespace mnian::core

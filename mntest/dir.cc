@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "mntest/file.h"
+#include "mntest/node.h"
 
 
 namespace mnian::test {
@@ -186,8 +187,8 @@ TEST(FileRef, Visit) {
 
   core::FileRef fref({}, &file, 0);
 
-  MockDirItemVisitor visitor;
-  EXPECT_CALL(visitor, VisitFile(&file));
+  ::testing::StrictMock<MockDirItemVisitor> visitor;
+  EXPECT_CALL(visitor, VisitFile(&fref));
   fref.Visit(&visitor);
 }
 
@@ -248,6 +249,25 @@ TEST(FileRef, ModifyFlags) {
   // The followings don't change anything, so the observer is not called.
   fref.UnsetFlag(core::FileRef::kReadable);
   fref.UnsetFlag(core::FileRef::kWritable);
+}
+
+
+TEST(iNodeRef, Visit) {
+  core::NodeRef nref({}, std::make_unique<MockNode>());
+
+  ::testing::StrictMock<MockDirItemVisitor> visitor;
+  EXPECT_CALL(visitor, VisitNode(&nref));
+  nref.Visit(&visitor);
+}
+
+TEST(iNodeRef, EntityUpdate) {
+  auto node     = std::make_unique<MockNode>();
+  auto node_ptr = node.get();
+  core::NodeRef nref({}, std::move(node));
+
+  ::testing::StrictMock<MockDirItemObserver> observer(&nref);
+  EXPECT_CALL(observer, ObserveUpdate());
+  node_ptr->NotifyUpdate();
 }
 
 

@@ -88,4 +88,9 @@ void FileRef::SerializeParam(iSerializer* serializer) const {
   map.Add("mode", mode);
 }
 
+
+void NodeRef::SerializeParam(iSerializer* serializer) const {
+  node_->Serialize(serializer);
+}
+
 }  // namespace mnian::core
