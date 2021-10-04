@@ -10,6 +10,7 @@ target_sources(mncore
     command.h
     conv.h
     dir.h
+    editor.h
     file.h
     logger.h
     serialize.h
