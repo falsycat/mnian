@@ -54,8 +54,8 @@ class iDirItemObserver {
 
 
   iDirItemObserver() = delete;
-  explicit iDirItemObserver(iDirItem* target);
-  virtual ~iDirItemObserver();
+  inline explicit iDirItemObserver(iDirItem* target);
+  inline virtual ~iDirItemObserver();
 
   iDirItemObserver(const iDirItemObserver&) = delete;
   iDirItemObserver(iDirItemObserver&&) = delete;
@@ -437,5 +437,16 @@ class NodeRef : public iDirItem {
 
   NodeObserver observer_;
 };
+
+
+iDirItemObserver::iDirItemObserver(iDirItem* target) : target_(target) {
+  assert(target_);
+  target_->observers_.push_back(this);
+}
+iDirItemObserver::~iDirItemObserver() {
+  if (!target_) return;
+  auto& obs = target_->observers_;
+  obs.erase(std::remove(obs.begin(), obs.end(), this), obs.end());
+}
 
 }  // namespace mnian::core

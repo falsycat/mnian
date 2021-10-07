@@ -4,19 +4,6 @@
 
 namespace mnian::core {
 
-iDirItemObserver::iDirItemObserver(iDirItem* target) : target_(target) {
-  assert(target_);
-  target_->observers_.push_back(this);
-}
-
-iDirItemObserver::~iDirItemObserver() {
-  if (!target_) return;
-
-  auto& obs = target_->observers_;
-  obs.erase(std::remove(obs.begin(), obs.end(), this), obs.end());
-}
-
-
 std::optional<std::string> iDirItem::ValidateName(const std::string& name) {
   static const std::string kAllowed =
       "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";

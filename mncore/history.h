@@ -24,8 +24,8 @@ class HistoryItem;
 class iHistoryObserver {
  public:
   iHistoryObserver() = delete;
-  explicit iHistoryObserver(History* target);
-  virtual ~iHistoryObserver();
+  inline explicit iHistoryObserver(History* target);
+  inline virtual ~iHistoryObserver();
 
   iHistoryObserver(const iHistoryObserver&) = delete;
   iHistoryObserver(iHistoryObserver&&) = delete;
@@ -316,5 +316,16 @@ class HistoryItem : public iSerializable {
 
   ItemList branch_;
 };
+
+
+iHistoryObserver::iHistoryObserver(History* target) : target_(target) {
+  assert(target_);
+  target_->observers_.push_back(this);
+}
+iHistoryObserver::~iHistoryObserver() {
+  if (!target_) return;
+  auto& obs = target_->observers_;
+  obs.erase(std::remove(obs.begin(), obs.end(), this), obs.end());
+}
 
 }  // namespace mnian::core

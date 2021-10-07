@@ -6,20 +6,6 @@
 
 namespace mnian::core {
 
-iHistoryObserver::iHistoryObserver(History* target) : target_(target) {
-  assert(target_);
-  target_->observers_.push_back(this);
-}
-
-iHistoryObserver::~iHistoryObserver() {
-  auto& obs = target_->observers_;
-
-  auto itr = std::find(obs.begin(), obs.end(), this);
-  if (itr == obs.end()) return;
-  obs.erase(itr);
-}
-
-
 void History::Exec(std::unique_ptr<iCommand>&& command) {
   head_->Fork(std::move(command));
   ReDo();

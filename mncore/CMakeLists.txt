@@ -19,7 +19,6 @@ target_sources(mncore
   PRIVATE
     command.cc
     dir.cc
-    file.cc
     history.cc
     serialize.cc
 )

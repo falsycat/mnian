@@ -23,8 +23,8 @@ class iFile;
 class iFileObserver {
  public:
   iFileObserver() = delete;
-  explicit iFileObserver(iFile* target);
-  virtual ~iFileObserver();
+  inline explicit iFileObserver(iFile* target);
+  inline virtual ~iFileObserver();
 
   iFileObserver(const iFileObserver&) = delete;
   iFileObserver(iFileObserver&&) = delete;
@@ -164,5 +164,15 @@ class iFileStore {
 
   virtual iFile* Load(const std::string& url) = 0;
 };
+
+
+iFileObserver::iFileObserver(iFile* target) : target_(target) {
+  assert(target);
+  target_->observers_.push_back(this);
+}
+iFileObserver::~iFileObserver() {
+  auto& obs = target_->observers_;
+  obs.erase(std::remove(obs.begin(), obs.end(), this), obs.end());
+}
 
 }  // namespace mnian::core

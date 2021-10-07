@@ -239,12 +239,10 @@ class iNodeFactory : public iActionable {
 
 iNodeObserver::iNodeObserver(iNode* target) : target_(target) {
   assert(target_);
-
   target_->observers_.push_back(this);
 }
 iNodeObserver::~iNodeObserver() {
   if (!target_) return;
-
   auto& obs = target_->observers_;
   obs.erase(std::remove(obs.begin(), obs.end(), this), obs.end());
 }
