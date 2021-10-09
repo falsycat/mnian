@@ -10,6 +10,7 @@
 #include <optional>
 #include <string>
 #include <typeinfo>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -216,24 +217,24 @@ class iSerializer {
 
 
 // This is like a DI container for deserializing.
-class Registry final {
+class DeserializerRegistry final {
  public:
   using Factory =
       std::function<std::unique_ptr<iPolymorphicSerializable>(iDeserializer*)>;
 
-  using FactorySet = std::map<std::string, Factory>;
+  using FactorySet = std::unordered_map<std::string, Factory>;
 
 
-  Registry() = delete;
-  explicit Registry(iApp* app) : app_(app) {
+  DeserializerRegistry() = delete;
+  explicit DeserializerRegistry(iApp* app) : app_(app) {
     assert(app_);
   }
 
-  Registry(const Registry&) = delete;
-  Registry(Registry&&) = delete;
+  DeserializerRegistry(const DeserializerRegistry&) = delete;
+  DeserializerRegistry(DeserializerRegistry&&) = delete;
 
-  Registry& operator=(const Registry&) = delete;
-  Registry& operator=(Registry&&) = delete;
+  DeserializerRegistry& operator=(const DeserializerRegistry&) = delete;
+  DeserializerRegistry& operator=(DeserializerRegistry&&) = delete;
 
 
   template <typename I>
@@ -274,7 +275,7 @@ class Registry final {
  private:
   iApp* app_;
 
-  std::map<size_t, FactorySet> items_;
+  std::unordered_map<size_t, FactorySet> items_;
 };
 
 
@@ -306,7 +307,8 @@ class iDeserializer {
 
 
   iDeserializer() = delete;
-  explicit iDeserializer(iLogger* logger, const Registry* registry) :
+  explicit iDeserializer(iLogger*                    logger,
+                         const DeserializerRegistry* registry) :
       logger_(logger), registry_(registry) {
     assert(logger_);
     assert(registry_);
@@ -366,7 +368,7 @@ class iDeserializer {
     return *logger_;
   }
 
-  const Registry& registry() const {
+  const DeserializerRegistry& registry() const {
     return *registry_;
   }
   iApp& app() const {
@@ -428,7 +430,7 @@ class iDeserializer {
  private:
   iLogger* logger_;
 
-  const Registry* registry_;
+  const DeserializerRegistry* registry_;
 
   std::vector<Key> stack_;
   size_t           null_depth_ = 0;
@@ -439,7 +441,7 @@ class iDeserializer {
 
 
 template <typename I>
-std::unique_ptr<I> Registry::DeserializeParam(
+std::unique_ptr<I> DeserializerRegistry::DeserializeParam(
     iDeserializer* des, const std::string& type) const {
   static_assert(std::is_base_of<iPolymorphicSerializable, I>::value);
 
@@ -474,7 +476,7 @@ std::unique_ptr<I> Registry::DeserializeParam(
 }
 
 template <typename I>
-std::unique_ptr<I> Registry::Deserialize(iDeserializer* des) const {
+std::unique_ptr<I> DeserializerRegistry::Deserialize(iDeserializer* des) const {
   static_assert(std::is_base_of<iPolymorphicSerializable, I>::value);
 
   des->Enter(std::string("type"));

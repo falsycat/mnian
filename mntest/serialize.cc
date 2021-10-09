@@ -34,7 +34,7 @@ TEST(iPolymorphicSerializable, Serialize) {
 
 TEST(iDeserializer, SetUndefined) {
   ::testing::StrictMock<MockApp> app;
-  core::Registry reg(&app);
+  core::DeserializerRegistry reg(&app);
   core::NullLogger logger;
 
   ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
@@ -60,7 +60,7 @@ TEST(iDeserializer, SetUndefined) {
 }
 TEST(iDeserializer, SetField) {
   ::testing::StrictMock<MockApp> app;
-  core::Registry reg(&app);
+  core::DeserializerRegistry reg(&app);
   core::NullLogger logger;
 
   ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
@@ -85,7 +85,7 @@ TEST(iDeserializer, SetField) {
 }
 TEST(iDeserializer, SetMapOrArray) {
   ::testing::StrictMock<MockApp> app;
-  core::Registry reg(&app);
+  core::DeserializerRegistry reg(&app);
   core::NullLogger logger;
 
   ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
@@ -111,7 +111,7 @@ TEST(iDeserializer, SetMapOrArray) {
 
 TEST(iDeserializer, EnterUndefined) {
   ::testing::StrictMock<MockApp> app;
-  core::Registry reg(&app);
+  core::DeserializerRegistry reg(&app);
   core::NullLogger logger;
 
   ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
@@ -146,7 +146,7 @@ TEST(iDeserializer, EnterUndefined) {
 
 TEST(iDeserializer, GenerateLocation) {
   ::testing::StrictMock<MockApp> app;
-  core::Registry reg(&app);
+  core::DeserializerRegistry reg(&app);
   core::NullLogger logger;
 
   ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
@@ -185,7 +185,7 @@ TEST(iDeserializer, GenerateLocation) {
 
 TEST(iDeserializer_ScopeGuard, EnterIndex) {
   ::testing::StrictMock<MockApp> app;
-  core::Registry reg(&app);
+  core::DeserializerRegistry reg(&app);
   core::NullLogger logger;
 
   ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
@@ -205,7 +205,7 @@ TEST(iDeserializer_ScopeGuard, EnterIndex) {
 }
 TEST(iDeserializer_ScopeGuard, EnterString) {
   ::testing::StrictMock<MockApp> app;
-  core::Registry reg(&app);
+  core::DeserializerRegistry reg(&app);
   core::NullLogger logger;
 
   ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
@@ -390,9 +390,9 @@ TEST(iSerializer_ArrayGuard, RecursiveAdd) {
 }
 
 
-TEST(Registry, RegisterFactory) {
+TEST(DeserializerRegistry, RegisterFactory) {
   ::testing::StrictMock<MockApp> app;
-  core::Registry reg(&app);
+  core::DeserializerRegistry reg(&app);
   core::NullLogger logger;
 
   reg.RegisterFactory<core::iPolymorphicSerializable>(
@@ -426,9 +426,9 @@ class TestSerializable : public core::iPolymorphicSerializable {
   void SerializeParam(core::iSerializer*) const override {
   }
 };
-TEST(Registry, RegisterType) {
+TEST(DeserializerRegistry, RegisterType) {
   ::testing::StrictMock<MockApp> app;
-  core::Registry reg(&app);
+  core::DeserializerRegistry reg(&app);
   core::NullLogger logger;
 
   reg.RegisterType<core::iPolymorphicSerializable, TestSerializable>();
@@ -447,9 +447,9 @@ TEST(Registry, RegisterType) {
 
 }  // namespace
 
-TEST(Registry, Deserialize) {
+TEST(DeserializerRegistry, Deserialize) {
   ::testing::StrictMock<MockApp> app;
-  core::Registry reg(&app);
+  core::DeserializerRegistry reg(&app);
   core::NullLogger logger;
 
   reg.RegisterType<
@@ -477,9 +477,9 @@ TEST(Registry, Deserialize) {
   ASSERT_TRUE(dynamic_cast<MockPolymorphicSerializable*>(product.get()));
 }
 
-TEST(Registry, DeserializeInvalid) {
+TEST(DeserializerRegistry, DeserializeInvalid) {
   ::testing::StrictMock<MockApp> app;
-  core::Registry reg(&app);
+  core::DeserializerRegistry reg(&app);
   core::NullLogger logger;
 
   reg.RegisterType<

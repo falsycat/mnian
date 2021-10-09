@@ -72,7 +72,8 @@ class MockSerializer : public core::iSerializer {
 class MockDeserializer : public core::iDeserializer {
  public:
   MockDeserializer() = delete;
-  explicit MockDeserializer(core::iLogger* logger, const core::Registry* reg) :
+  explicit MockDeserializer(core::iLogger*                    logger,
+                            const core::DeserializerRegistry* reg) :
       iDeserializer(logger, reg) {
   }
 
