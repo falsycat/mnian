@@ -35,4 +35,23 @@ TEST(iFileObserver, AutoRemoval) {
   file.Touch();
 }
 
+TEST(iFileStore, Load) {
+  ::testing::StrictMock<MockFileStore> store;
+  ON_CALL(store, Create(::testing::_)).
+      WillByDefault([](const std::string& url) {
+                      return std::make_unique<MockFile>(url);
+                    });
+
+  EXPECT_CALL(store, Create("hello"));
+  EXPECT_CALL(store, Create("world"));
+
+  auto hello = store.Load("hello");
+  EXPECT_TRUE(hello);
+  EXPECT_EQ(hello, store.Load("hello"));
+
+  auto world = store.Load("world");
+  EXPECT_TRUE(world);
+  EXPECT_EQ(world, store.Load("world"));
+}
+
 }  // namespace mnian::test

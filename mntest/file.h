@@ -5,6 +5,7 @@
 
 #include <gmock/gmock.h>
 
+#include <memory>
 #include <string>
 
 
@@ -56,7 +57,8 @@ class MockFileStore : public core::iFileStore {
   MockFileStore& operator=(MockFileStore&&) = delete;
 
 
-  MOCK_METHOD(core::iFile*, Load, (const std::string&), (override));
+  MOCK_METHOD(std::unique_ptr<core::iFile>,
+              Create, (const std::string&), (override));
 };
 
 }  // namespace mnian::test

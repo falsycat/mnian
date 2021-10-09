@@ -5,8 +5,10 @@
 
 #include <algorithm>
 #include <cassert>
+#include <memory>
 #include <mutex>  // NOLINT(build/c++11)
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -162,7 +164,23 @@ class iFileStore {
   iFileStore& operator=(iFileStore&&) = delete;
 
 
-  virtual iFile* Load(const std::string& url) = 0;
+  iFile* Load(const std::string& url) {
+    auto itr = items_.find(url);
+    if (itr != items_.end()) return itr->second.get();
+
+    auto file = Create(url);
+    assert(file);
+
+    auto ptr = file.get();
+    items_[url] = std::move(file);
+    return ptr;
+  }
+
+ protected:
+  virtual std::unique_ptr<iFile> Create(const std::string& url) = 0;
+
+ private:
+  std::unordered_map<std::string, std::unique_ptr<iFile>> items_;
 };
 
 
