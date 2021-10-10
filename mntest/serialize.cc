@@ -197,6 +197,60 @@ TEST(iSerializer_ArrayGuard, RecursiveAdd) {
 }
 
 
+namespace {
+
+void SerializeTestObject(core::iSerializer* serial) {
+  core::iSerializer::ArrayGuard array(serial);
+  core::iSerializer::MapGuard   map(serial);
+
+  map.Add("array",  &array);
+  map.Add("int",    int64_t{0});
+  map.Add("double", 0.);
+  map.Add("str",    std::string("helloworld"));
+  map.Add("bool",   true);
+
+  array.Add(int64_t{0});
+  array.Add(0.);
+  array.Add(std::string("helloworld"));
+  array.Add(true);
+}
+
+TEST(iSerializer, Json) {
+  static constexpr const char* kExpect =
+      R"({"array":[0,0.0,"helloworld",true],"int":0,"double":0.0,"str":"helloworld","bool":true})";
+
+  std::stringstream st;
+  {
+    auto serial = core::iSerializer::CreateJson(&st);
+    SerializeTestObject(serial.get());
+  }
+  ASSERT_EQ(st.str(), kExpect);
+}
+TEST(iSerializer, PrettyJson) {
+  static constexpr const char* kExpect = R"({
+  "array": [
+    0,
+    0.0,
+    "helloworld",
+    true
+  ],
+  "int": 0,
+  "double": 0.0,
+  "str": "helloworld",
+  "bool": true
+})";
+
+  std::stringstream st;
+  {
+    auto serial = core::iSerializer::CreatePrettyJson(&st);
+    SerializeTestObject(serial.get());
+  }
+  ASSERT_EQ(st.str(), kExpect);
+}
+
+}  // namespace
+
+
 class iDeserializer : public ::testing::Test {
  public:
   iDeserializer() :

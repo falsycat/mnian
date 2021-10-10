@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <typeinfo>
 #include <unordered_map>
@@ -190,6 +191,11 @@ class iSerializer {
 
     std::vector<Item> items_;
   };
+
+
+  static std::unique_ptr<iSerializer> CreateJson(std::ostream* out);
+
+  static std::unique_ptr<iSerializer> CreatePrettyJson(std::ostream* out);
 
 
   iSerializer() = default;

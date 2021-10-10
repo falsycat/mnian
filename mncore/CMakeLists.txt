@@ -22,4 +22,15 @@ target_sources(mncore
     dir.cc
     history.cc
     serialize.cc
+    serialize_json.cc
+)
+
+target_link_libraries(mncore
+  PRIVATE
+    rapidjson
+)
+
+target_compile_definitions(mncore
+  PRIVATE
+    RAPIDJSON_HAS_STDSTRING
 )
