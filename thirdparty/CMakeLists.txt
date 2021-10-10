@@ -26,7 +26,7 @@ endif()
 
 if (MNIAN_BUILD_TEST)
   FetchContent_MakeAvailable(googletest)
- endif()
+endif()
 
 
 # ---- GLEW ----
@@ -99,6 +99,23 @@ target_include_directories(imgui SYSTEM
 )
 target_link_libraries(imgui
   PRIVATE glfw
+)
+
+
+# ---- RapidJSON ----
+# repository: https://github.com/Tencent/rapidjson
+# license   : MIT
+
+FetchContent_Declare(
+  rapidjson
+  URL "https://github.com/Tencent/rapidjson/archive/2e8f5d897d9d461a7273b4b812b0127f321b1dcf.zip"
+)
+
+FetchContent_Populate(rapidjson)
+
+add_library(rapidjson INTERFACE)
+target_include_directories(rapidjson
+  INTERFACE "${rapidjson_SOURCE_DIR}/include"
 )
 
 
