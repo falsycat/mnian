@@ -32,199 +32,6 @@ TEST(iPolymorphicSerializable, Serialize) {
   serializable.Serialize(&serializer);
 }
 
-TEST(iDeserializer, SetUndefined) {
-  ::testing::StrictMock<MockApp> app;
-  core::DeserializerRegistry reg(&app);
-  core::NullLogger logger;
-
-  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
-  deserializer.SetMapOrArray(0);
-
-  EXPECT_CALL(deserializer,
-              DoEnter(core::iDeserializer::Key(std::string("key")))).
-      WillOnce([&](auto key) {
-                 deserializer.SetUndefined();
-                 return key;
-               });
-  deserializer.Enter(std::string("key"));
-
-  ASSERT_EQ(deserializer.key(), std::string("key"));
-  ASSERT_FALSE(deserializer.key<size_t>());
-
-  ASSERT_FALSE(deserializer.value<int64_t>());
-  ASSERT_FALSE(deserializer.value<double>());
-  ASSERT_FALSE(deserializer.value<std::string>());
-  ASSERT_FALSE(deserializer.value<bool>());
-  ASSERT_FALSE(deserializer.size());
-  ASSERT_TRUE(deserializer.undefined());
-}
-TEST(iDeserializer, SetField) {
-  ::testing::StrictMock<MockApp> app;
-  core::DeserializerRegistry reg(&app);
-  core::NullLogger logger;
-
-  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
-  deserializer.SetMapOrArray(0);
-
-  EXPECT_CALL(deserializer, DoEnter(core::iDeserializer::Key(size_t{0}))).
-      WillOnce([&](auto key) {
-                 deserializer.SetField(std::string("helloworld"));
-                 return key;
-               });
-  deserializer.Enter(size_t{0});
-
-  ASSERT_FALSE(deserializer.key());
-  ASSERT_EQ(deserializer.key<size_t>(), size_t{0});
-
-  ASSERT_FALSE(deserializer.value<int64_t>());
-  ASSERT_FALSE(deserializer.value<double>());
-  ASSERT_EQ(deserializer.value<std::string>(), std::string("helloworld"));
-  ASSERT_FALSE(deserializer.value<bool>());
-  ASSERT_FALSE(deserializer.size());
-  ASSERT_FALSE(deserializer.undefined());
-}
-TEST(iDeserializer, SetMapOrArray) {
-  ::testing::StrictMock<MockApp> app;
-  core::DeserializerRegistry reg(&app);
-  core::NullLogger logger;
-
-  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
-  deserializer.SetMapOrArray(0);
-
-  EXPECT_CALL(deserializer, DoEnter(core::iDeserializer::Key(size_t{0}))).
-      WillOnce([&](auto key) {
-                 deserializer.SetMapOrArray(1);
-                 return key;
-               });
-  deserializer.Enter(size_t{0});
-
-  ASSERT_FALSE(deserializer.key());
-  ASSERT_EQ(deserializer.key<size_t>(), size_t{0});
-
-  ASSERT_FALSE(deserializer.value<int64_t>());
-  ASSERT_FALSE(deserializer.value<double>());
-  ASSERT_FALSE(deserializer.value<std::string>());
-  ASSERT_FALSE(deserializer.value<bool>());
-  ASSERT_EQ(deserializer.size(), size_t{1});
-  ASSERT_FALSE(deserializer.undefined());
-}
-
-TEST(iDeserializer, EnterUndefined) {
-  ::testing::StrictMock<MockApp> app;
-  core::DeserializerRegistry reg(&app);
-  core::NullLogger logger;
-
-  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
-
-  ASSERT_TRUE(deserializer.undefined());
-  ASSERT_FALSE(deserializer.key());
-
-  deserializer.Enter(std::string("helloworld"));
-  ASSERT_TRUE(deserializer.undefined());
-  ASSERT_EQ(deserializer.key(), std::string("helloworld"));
-
-  deserializer.Enter(size_t{0});
-  ASSERT_TRUE(deserializer.undefined());
-  ASSERT_EQ(deserializer.key<size_t>(), size_t{0});
-
-  deserializer.Leave();
-  ASSERT_TRUE(deserializer.undefined());
-  ASSERT_EQ(deserializer.key(), std::string("helloworld"));
-
-  deserializer.Enter(size_t{1});
-  ASSERT_TRUE(deserializer.undefined());
-  ASSERT_EQ(deserializer.key<size_t>(), size_t{1});
-
-  deserializer.Leave();
-  ASSERT_TRUE(deserializer.undefined());
-  ASSERT_EQ(deserializer.key(), std::string("helloworld"));
-
-  deserializer.Leave();
-  ASSERT_TRUE(deserializer.undefined());
-  ASSERT_FALSE(deserializer.key());
-}
-
-TEST(iDeserializer, GenerateLocation) {
-  ::testing::StrictMock<MockApp> app;
-  core::DeserializerRegistry reg(&app);
-  core::NullLogger logger;
-
-  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
-  ASSERT_EQ(deserializer.GenerateLocation(), "");
-
-  deserializer.Enter(std::string("helloworld"));
-  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld");
-
-  deserializer.Enter(size_t{0});
-  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld[0]");
-
-  deserializer.Enter(std::string("hoge"));
-  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld[0].hoge");
-
-  deserializer.Enter(std::string("fuga"));
-  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld[0].hoge.fuga");
-
-  deserializer.Leave();
-  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld[0].hoge");
-
-  deserializer.Leave();
-  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld[0]");
-
-  deserializer.Leave();
-  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld");
-
-  deserializer.Enter(size_t{1});
-  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld[1]");
-
-  deserializer.Leave();
-  ASSERT_EQ(deserializer.GenerateLocation(), "helloworld");
-
-  deserializer.Leave();
-  ASSERT_EQ(deserializer.GenerateLocation(), "");
-}
-
-TEST(iDeserializer_ScopeGuard, EnterIndex) {
-  ::testing::StrictMock<MockApp> app;
-  core::DeserializerRegistry reg(&app);
-  core::NullLogger logger;
-
-  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
-  deserializer.SetMapOrArray(0);
-  {
-    ::testing::InSequence seq_;
-
-    EXPECT_CALL(deserializer, DoEnter(core::iDeserializer::Key(size_t{0}))).
-        WillOnce([&](auto key) {
-                   deserializer.SetMapOrArray(1);
-                   return key;
-                 });
-    EXPECT_CALL(deserializer, DoLeave());
-  }
-
-  core::iDeserializer::ScopeGuard _(&deserializer, size_t{0});
-}
-TEST(iDeserializer_ScopeGuard, EnterString) {
-  ::testing::StrictMock<MockApp> app;
-  core::DeserializerRegistry reg(&app);
-  core::NullLogger logger;
-
-  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
-  deserializer.SetMapOrArray(0);
-  {
-    ::testing::InSequence seq_;
-
-    EXPECT_CALL(deserializer,
-                DoEnter(core::iDeserializer::Key(std::string("key1")))).
-        WillOnce([&](auto key) {
-                   deserializer.SetMapOrArray(1);
-                   return key;
-                 });
-    EXPECT_CALL(deserializer, DoLeave());
-  }
-
-  core::iDeserializer::ScopeGuard _(&deserializer, std::string("key1"));
-}
-
 
 TEST(iSerializer_MapGuard, SimpleAdd) {
   ::testing::StrictMock<MockSerializer> serializer;
@@ -390,109 +197,254 @@ TEST(iSerializer_ArrayGuard, RecursiveAdd) {
 }
 
 
-TEST(DeserializerRegistry, RegisterFactory) {
-  ::testing::StrictMock<MockApp> app;
-  core::DeserializerRegistry reg(&app);
-  core::NullLogger logger;
+class iDeserializer : public ::testing::Test {
+ public:
+  iDeserializer() : reg_(), app_(), logger_(), des_(&app_, &logger_, &reg_) {
+  }
 
-  reg.RegisterFactory<core::iPolymorphicSerializable>(
+  core::DeserializerRegistry reg_;
+
+  MockApp app_;
+
+  core::NullLogger logger_;
+
+  ::testing::StrictMock<MockDeserializer> des_;
+};
+
+TEST_F(iDeserializer, SetUndefined) {
+  des_.SetMapOrArray(0);
+
+  EXPECT_CALL(des_,
+              DoEnter(core::iDeserializer::Key(std::string("key")))).
+      WillOnce([&](auto key) {
+                 des_.SetUndefined();
+                 return key;
+               });
+  des_.Enter(std::string("key"));
+
+  ASSERT_EQ(des_.key(), std::string("key"));
+  ASSERT_FALSE(des_.key<size_t>());
+
+  ASSERT_FALSE(des_.value<int64_t>());
+  ASSERT_FALSE(des_.value<double>());
+  ASSERT_FALSE(des_.value<std::string>());
+  ASSERT_FALSE(des_.value<bool>());
+  ASSERT_FALSE(des_.size());
+  ASSERT_TRUE(des_.undefined());
+}
+TEST_F(iDeserializer, SetField) {
+  des_.SetMapOrArray(0);
+
+  EXPECT_CALL(des_, DoEnter(core::iDeserializer::Key(size_t{0}))).
+      WillOnce([&](auto key) {
+                 des_.SetField(std::string("helloworld"));
+                 return key;
+               });
+  des_.Enter(size_t{0});
+
+  ASSERT_FALSE(des_.key());
+  ASSERT_EQ(des_.key<size_t>(), size_t{0});
+
+  ASSERT_FALSE(des_.value<int64_t>());
+  ASSERT_FALSE(des_.value<double>());
+  ASSERT_EQ(des_.value<std::string>(), std::string("helloworld"));
+  ASSERT_FALSE(des_.value<bool>());
+  ASSERT_FALSE(des_.size());
+  ASSERT_FALSE(des_.undefined());
+}
+TEST_F(iDeserializer, SetMapOrArray) {
+  des_.SetMapOrArray(0);
+
+  EXPECT_CALL(des_, DoEnter(core::iDeserializer::Key(size_t{0}))).
+      WillOnce([&](auto key) {
+                 des_.SetMapOrArray(1);
+                 return key;
+               });
+  des_.Enter(size_t{0});
+
+  ASSERT_FALSE(des_.key());
+  ASSERT_EQ(des_.key<size_t>(), size_t{0});
+
+  ASSERT_FALSE(des_.value<int64_t>());
+  ASSERT_FALSE(des_.value<double>());
+  ASSERT_FALSE(des_.value<std::string>());
+  ASSERT_FALSE(des_.value<bool>());
+  ASSERT_EQ(des_.size(), size_t{1});
+  ASSERT_FALSE(des_.undefined());
+}
+
+TEST_F(iDeserializer, EnterUndefined) {
+  ASSERT_TRUE(des_.undefined());
+  ASSERT_FALSE(des_.key());
+
+  des_.Enter(std::string("helloworld"));
+  ASSERT_TRUE(des_.undefined());
+  ASSERT_EQ(des_.key(), std::string("helloworld"));
+
+  des_.Enter(size_t{0});
+  ASSERT_TRUE(des_.undefined());
+  ASSERT_EQ(des_.key<size_t>(), size_t{0});
+
+  des_.Leave();
+  ASSERT_TRUE(des_.undefined());
+  ASSERT_EQ(des_.key(), std::string("helloworld"));
+
+  des_.Enter(size_t{1});
+  ASSERT_TRUE(des_.undefined());
+  ASSERT_EQ(des_.key<size_t>(), size_t{1});
+
+  des_.Leave();
+  ASSERT_TRUE(des_.undefined());
+  ASSERT_EQ(des_.key(), std::string("helloworld"));
+
+  des_.Leave();
+  ASSERT_TRUE(des_.undefined());
+  ASSERT_FALSE(des_.key());
+}
+TEST_F(iDeserializer, EnterIndex) {
+  des_.SetMapOrArray(0);
+  {
+    ::testing::InSequence seq_;
+
+    EXPECT_CALL(des_, DoEnter(core::iDeserializer::Key(size_t{0}))).
+        WillOnce([&](auto key) {
+                   des_.SetMapOrArray(1);
+                   return key;
+                 });
+    EXPECT_CALL(des_, DoLeave());
+  }
+
+  core::iDeserializer::ScopeGuard _(&des_, size_t{0});
+}
+TEST_F(iDeserializer, EnterString) {
+  des_.SetMapOrArray(0);
+  {
+    ::testing::InSequence seq_;
+
+    EXPECT_CALL(des_,
+                DoEnter(core::iDeserializer::Key(std::string("key1")))).
+        WillOnce([&](auto key) {
+                   des_.SetMapOrArray(1);
+                   return key;
+                 });
+    EXPECT_CALL(des_, DoLeave());
+  }
+
+  core::iDeserializer::ScopeGuard _(&des_, std::string("key1"));
+}
+
+TEST_F(iDeserializer, GenerateLocation) {
+  ASSERT_EQ(des_.GenerateLocation(), "");
+
+  des_.Enter(std::string("helloworld"));
+  ASSERT_EQ(des_.GenerateLocation(), "helloworld");
+
+  des_.Enter(size_t{0});
+  ASSERT_EQ(des_.GenerateLocation(), "helloworld[0]");
+
+  des_.Enter(std::string("hoge"));
+  ASSERT_EQ(des_.GenerateLocation(), "helloworld[0].hoge");
+
+  des_.Enter(std::string("fuga"));
+  ASSERT_EQ(des_.GenerateLocation(), "helloworld[0].hoge.fuga");
+
+  des_.Leave();
+  ASSERT_EQ(des_.GenerateLocation(), "helloworld[0].hoge");
+
+  des_.Leave();
+  ASSERT_EQ(des_.GenerateLocation(), "helloworld[0]");
+
+  des_.Leave();
+  ASSERT_EQ(des_.GenerateLocation(), "helloworld");
+
+  des_.Enter(size_t{1});
+  ASSERT_EQ(des_.GenerateLocation(), "helloworld[1]");
+
+  des_.Leave();
+  ASSERT_EQ(des_.GenerateLocation(), "helloworld");
+
+  des_.Leave();
+  ASSERT_EQ(des_.GenerateLocation(), "");
+}
+
+
+class DeserializerRegistry : public iDeserializer {
+ public:
+  class TestSerializable : public core::iPolymorphicSerializable {
+   public:
+    static constexpr const char* kType = "Test";
+
+    static std::unique_ptr<TestSerializable> DeserializeParam(
+        core::iDeserializer*) {
+      return std::make_unique<TestSerializable>();
+    }
+    TestSerializable() : iPolymorphicSerializable(kType) {
+    }
+    void SerializeParam(core::iSerializer*) const override {
+    }
+  };
+};
+
+TEST_F(DeserializerRegistry, RegisterFactory) {
+  reg_.RegisterFactory<core::iPolymorphicSerializable>(
       MockPolymorphicSerializable::kType,
       [](auto) { return std::make_unique<MockPolymorphicSerializable>(); });
 
-  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
-  deserializer.SetMapOrArray(0);
+  des_.SetMapOrArray(0);
 
-  auto product = reg.DeserializeParam<core::iPolymorphicSerializable>(
-      &deserializer, MockPolymorphicSerializable::kType);
+  auto product = reg_.DeserializeParam<core::iPolymorphicSerializable>(
+      &des_, MockPolymorphicSerializable::kType);
   ASSERT_TRUE(product);
   ASSERT_TRUE(dynamic_cast<MockPolymorphicSerializable*>(product.get()));
 
-  ASSERT_FALSE(reg.DeserializeParam<core::iPolymorphicSerializable>(
-          &deserializer, "hello"));
+  ASSERT_FALSE(
+      reg_.DeserializeParam<core::iPolymorphicSerializable>(&des_, "hello"));
 }
+TEST_F(DeserializerRegistry, RegisterType) {
+  reg_.RegisterType<core::iPolymorphicSerializable, TestSerializable>();
+  des_.SetMapOrArray(0);
 
-namespace {
-
-class TestSerializable : public core::iPolymorphicSerializable {
- public:
-  static constexpr const char* kType = "Test";
-
-  static std::unique_ptr<TestSerializable> DeserializeParam(
-      core::iDeserializer*) {
-    return std::make_unique<TestSerializable>();
-  }
-  TestSerializable() : iPolymorphicSerializable(kType) {
-  }
-  void SerializeParam(core::iSerializer*) const override {
-  }
-};
-TEST(DeserializerRegistry, RegisterType) {
-  ::testing::StrictMock<MockApp> app;
-  core::DeserializerRegistry reg(&app);
-  core::NullLogger logger;
-
-  reg.RegisterType<core::iPolymorphicSerializable, TestSerializable>();
-
-  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
-  deserializer.SetMapOrArray(0);
-
-  auto product = reg.DeserializeParam<core::iPolymorphicSerializable>(
-      &deserializer, TestSerializable::kType);
+  auto product = reg_.DeserializeParam<core::iPolymorphicSerializable>(
+      &des_, TestSerializable::kType);
   ASSERT_TRUE(product);
   ASSERT_TRUE(dynamic_cast<TestSerializable*>(product.get()));
 
-  ASSERT_FALSE(reg.DeserializeParam<core::iPolymorphicSerializable>(
-          &deserializer, "hello"));
+  ASSERT_FALSE(
+      reg_.DeserializeParam<core::iPolymorphicSerializable>(&des_, "hello"));
 }
 
-}  // namespace
-
-TEST(DeserializerRegistry, Deserialize) {
-  ::testing::StrictMock<MockApp> app;
-  core::DeserializerRegistry reg(&app);
-  core::NullLogger logger;
-
-  reg.RegisterType<
+TEST_F(DeserializerRegistry, Deserialize) {
+  reg_.RegisterType<
       core::iPolymorphicSerializable, MockPolymorphicSerializable>();
+  des_.SetMapOrArray(0);
 
-  ::testing::StrictMock<MockDeserializer> deserializer(&logger, &reg);
-  deserializer.SetMapOrArray(0);
-
-  EXPECT_CALL(deserializer, DoEnter(::testing::_)).
+  EXPECT_CALL(des_, DoEnter(::testing::_)).
       Times(2).
       WillOnce([&](auto key) {
-                 deserializer.SetField(
+                 des_.SetField(
                      std::string(MockPolymorphicSerializable::kType));
                  return key;
                }).
       WillOnce([&](auto key) {
-                 deserializer.SetField(int64_t{0});
+                 des_.SetField(int64_t{0});
                  return key;
                });
-  EXPECT_CALL(deserializer, DoLeave()).Times(2);
+  EXPECT_CALL(des_, DoLeave()).Times(2);
 
   auto product =
-      deserializer.DeserializeObject<core::iPolymorphicSerializable>();
+      des_.DeserializeObject<core::iPolymorphicSerializable>();
   ASSERT_TRUE(product);
   ASSERT_TRUE(dynamic_cast<MockPolymorphicSerializable*>(product.get()));
 }
-
-TEST(DeserializerRegistry, DeserializeInvalid) {
-  ::testing::StrictMock<MockApp> app;
-  core::DeserializerRegistry reg(&app);
-  core::NullLogger logger;
-
-  reg.RegisterType<
+TEST_F(DeserializerRegistry, DeserializeInvalid) {
+  reg_.RegisterType<
       core::iPolymorphicSerializable, MockPolymorphicSerializable>();
+  des_.SetMapOrArray(0);
 
-  ::testing::NiceMock<MockDeserializer> deserializer(&logger, &reg);
-  deserializer.SetMapOrArray(0);
+  EXPECT_CALL(des_, DoEnter(::testing::_));
+  EXPECT_CALL(des_, DoLeave());
 
-  EXPECT_CALL(deserializer, DoEnter(::testing::_));
-  EXPECT_CALL(deserializer, DoLeave());
-
-  auto product =
-      deserializer.DeserializeObject<core::iPolymorphicSerializable>();
+  auto product = des_.DeserializeObject<core::iPolymorphicSerializable>();
   ASSERT_FALSE(product);
 }
 

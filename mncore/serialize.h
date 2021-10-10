@@ -14,13 +14,13 @@
 #include <utility>
 #include <vector>
 
-#include "mncore/app.h"
 #include "mncore/conv.h"
 #include "mncore/logger.h"
 
 
 namespace mnian::core {
 
+class iApp;
 class iSerializer;
 class iDeserializer;
 
@@ -225,10 +225,7 @@ class DeserializerRegistry final {
   using FactorySet = std::unordered_map<std::string, Factory>;
 
 
-  DeserializerRegistry() = delete;
-  explicit DeserializerRegistry(iApp* app) : app_(app) {
-    assert(app_);
-  }
+  DeserializerRegistry() = default;
 
   DeserializerRegistry(const DeserializerRegistry&) = delete;
   DeserializerRegistry(DeserializerRegistry&&) = delete;
@@ -267,14 +264,7 @@ class DeserializerRegistry final {
   template <typename I>
   std::unique_ptr<I> Deserialize(iDeserializer* des) const;
 
-
-  iApp& app() const {
-    return *app_;
-  }
-
  private:
-  iApp* app_;
-
   std::unordered_map<size_t, FactorySet> items_;
 };
 
@@ -307,9 +297,11 @@ class iDeserializer {
 
 
   iDeserializer() = delete;
-  explicit iDeserializer(iLogger*                    logger,
+  explicit iDeserializer(iApp*                       app,
+                         iLogger*                    logger,
                          const DeserializerRegistry* registry) :
-      logger_(logger), registry_(registry) {
+      app_(app), logger_(logger), registry_(registry) {
+    assert(app_);
     assert(logger_);
     assert(registry_);
   }
@@ -372,7 +364,7 @@ class iDeserializer {
     return *registry_;
   }
   iApp& app() const {
-    return registry_->app();
+    return *app_;
   }
 
 
@@ -428,6 +420,7 @@ class iDeserializer {
   }
 
  private:
+  iApp*    app_;
   iLogger* logger_;
 
   const DeserializerRegistry* registry_;
