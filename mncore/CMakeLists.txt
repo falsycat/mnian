@@ -17,6 +17,7 @@ target_sources(mncore
     serialize.h
     task.h
   PRIVATE
+    app.cc
     command.cc
     dir.cc
     history.cc

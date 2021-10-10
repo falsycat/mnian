@@ -60,7 +60,7 @@ class History : public iSerializable {
 
 
   History() = delete;
-  explicit History(iClock* clock) : clock_(clock) {
+  explicit History(const iClock* clock) : clock_(clock) {
     assert(clock_);
 
     Clear();
@@ -96,7 +96,7 @@ class History : public iSerializable {
   void Serialize(iSerializer*) const override;
 
 
-  iClock& clock() const {
+  const iClock& clock() const {
     return *clock_;
   }
 
@@ -119,7 +119,7 @@ class History : public iSerializable {
   void DropItem(HistoryItem* item);
 
 
-  iClock* clock_;
+  const iClock* clock_;
 
   ItemMap items_;
 

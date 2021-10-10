@@ -9,7 +9,7 @@
 #include <variant>
 
 #include "mntest/app.h"
-#include "mntest/logger.h"
+#include "mntest/file.h"
 
 
 namespace mnian::test {
@@ -199,14 +199,19 @@ TEST(iSerializer_ArrayGuard, RecursiveAdd) {
 
 class iDeserializer : public ::testing::Test {
  public:
-  iDeserializer() : reg_(), app_(), logger_(), des_(&app_, &logger_, &reg_) {
+  iDeserializer() :
+      app_(&clock_, &reg_, &logger_, &fstore_), des_(&app_, &logger_, &reg_) {
   }
+
+  core::ManualClock clock_;
 
   core::DeserializerRegistry reg_;
 
-  MockApp app_;
-
   core::NullLogger logger_;
+
+  ::testing::NiceMock<MockFileStore> fstore_;
+
+  ::testing::NiceMock<MockApp> app_;
 
   ::testing::StrictMock<MockDeserializer> des_;
 };

@@ -3,6 +3,7 @@
 // This file declares classes about getting time.
 #pragma once
 
+#include <cassert>
 #include <ctime>
 
 

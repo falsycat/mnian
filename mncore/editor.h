@@ -14,25 +14,6 @@
 
 namespace mnian::core {
 
-class iWidget;
-
-
-class iEditor {
- public:
-  iEditor() = default;
-
-  iEditor(const iEditor&) = delete;
-  iEditor(iEditor&&) = delete;
-
-  iEditor& operator=(const iEditor&) = delete;
-  iEditor& operator=(iEditor&&) = delete;
-
-
-  virtual void Add(std::unique_ptr<iWidget>&&) = 0;
-  virtual void Remove(const iWidget*) = 0;
-};
-
-
 class iWidget : public iPolymorphicSerializable{
  public:
   iWidget() = delete;
@@ -47,6 +28,24 @@ class iWidget : public iPolymorphicSerializable{
 
 
   virtual void Update() = 0;
+};
+
+
+class iEditor : public iWidget {
+ public:
+  iEditor() = delete;
+  explicit iEditor(const char* type) : iWidget(type) {
+  }
+
+  iEditor(const iEditor&) = delete;
+  iEditor(iEditor&&) = delete;
+
+  iEditor& operator=(const iEditor&) = delete;
+  iEditor& operator=(iEditor&&) = delete;
+
+
+  virtual void Add(std::unique_ptr<iWidget>&&) = 0;
+  virtual void Remove(const iWidget*) = 0;
 };
 
 }  // namespace mnian::core
