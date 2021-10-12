@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <functional>
+#include <istream>
 #include <map>
 #include <memory>
 #include <optional>
@@ -300,6 +301,13 @@ class iDeserializer {
    private:
     iDeserializer* target_;
   };
+
+
+  static std::unique_ptr<iDeserializer> CreateJson(
+      iApp*                       app,
+      iLogger*                    logger,
+      const DeserializerRegistry* reg,
+      std::istream*               in);
 
 
   iDeserializer() = delete;
