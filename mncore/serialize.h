@@ -5,9 +5,11 @@
 
 #include <cassert>
 #include <functional>
+#include <istream>
 #include <map>
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <typeinfo>
 #include <unordered_map>
@@ -192,6 +194,11 @@ class iSerializer {
   };
 
 
+  static std::unique_ptr<iSerializer> CreateJson(std::ostream* out);
+
+  static std::unique_ptr<iSerializer> CreatePrettyJson(std::ostream* out);
+
+
   iSerializer() = default;
   virtual ~iSerializer() = default;
 
@@ -294,6 +301,13 @@ class iDeserializer {
    private:
     iDeserializer* target_;
   };
+
+
+  static std::unique_ptr<iDeserializer> CreateJson(
+      iApp*                       app,
+      iLogger*                    logger,
+      const DeserializerRegistry* reg,
+      std::istream*               in);
 
 
   iDeserializer() = delete;
