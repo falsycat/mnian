@@ -6,10 +6,10 @@
 
 #include "mncore/app.h"
 #include "mncore/clock.h"
-#include "mncore/logger.h"
 #include "mncore/serialize.h"
 
 #include "mnian/file.h"
+#include "mnian/logger.h"
 
 
 namespace mnian {
@@ -20,6 +20,7 @@ class App : public core::iApp {
   explicit App(const core::DeserializerRegistry* reg) :
       iApp(&clock_, reg, &logger_, &fstore_) {
     assert(reg);
+    Reset();
   }
 
   App(const App&) = delete;
@@ -32,13 +33,14 @@ class App : public core::iApp {
   void Load(const std::string&) override;
   void Save() override;
 
+  void Reset();
 
   void Update();
 
  private:
   core::RealClock clock_;
 
-  core::BroadcastLogger logger_;
+  TracyLogger logger_;
 
   FileStore fstore_;
 };

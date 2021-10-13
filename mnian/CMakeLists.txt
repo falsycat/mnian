@@ -6,12 +6,16 @@ target_sources(mnian
   PRIVATE
     app.cc
     app.h
+    dir.h
     editor.cc
     editor.h
     file.cc
     file.h
+    logger.h
     main.cc
     registry.h
+    widget_project_view.h
+    widget_project_view.cc
 )
 target_link_libraries(mnian
   PRIVATE
