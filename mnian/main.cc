@@ -1,12 +1,22 @@
 // No copyright
 
-#include <stdio.h>
+#include <string.h>
 
+#include <fontawesome.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
+#include <thread>  // NOLINT(build/c++11)
+
 #include <Tracy.hpp>
+
+#include "mnian/app.h"
+#include "mnian/editor.h"
+#include "mnian/registry.h"
+
+#include "mnres/all.h"
+
 
 #if defined(IMGUI_IMPL_OPENGL_ES2)
   #include <GLES2/gl2.h>
@@ -20,121 +30,144 @@
 #endif
 
 
-static void GlfwErrorCallback(int error, const char* description) {
-  fprintf(stderr, "Glfw Error %d: %s\n", error, description);
+static void GlfwErrorCallback(int, const char* description) {
+  TracyMessageLCS("GLFW error", tracy::Color::Magenta, 0);
+  TracyMessageLCS(description, tracy::Color::Gray, 0);
 }
 
 int main(int, char**) {
-  glfwSetErrorCallback(GlfwErrorCallback);
-  if (!glfwInit()) return 1;
-
-# if defined(__APPLE__)
-    // GL 3.2 + GLSL 150
-    const char* glsl_version = "#version 150";
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-# else
-    // GL 3.3 + GLSL 130
-    const char* glsl_version = "#version 130";
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-# endif
-
-  // Create window with graphics context
-  GLFWwindow* window = glfwCreateWindow(
-      1280, 720, "Dear ImGui GLFW+OpenGL3 example", NULL, NULL);
-  if (window == NULL) return 1;
-  glfwMakeContextCurrent(window);
-  glfwSwapInterval(1);  // Enable vsync
-
-  // Setup Dear ImGui context
-  IMGUI_CHECKVERSION();
-  ImGui::CreateContext();
-  ImGuiIO& io = ImGui::GetIO(); (void)io;
-  // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-  // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-
-  ImGui::StyleColorsDark();
-  // Setup Platform/Renderer backends
-
-  ImGui_ImplGlfw_InitForOpenGL(window, true);
-  ImGui_ImplOpenGL3_Init(glsl_version);
-
-  // Our state
-  bool show_demo_window = true;
-  bool show_another_window = false;
-  ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
-  while (!glfwWindowShouldClose(window)) {
-    glfwPollEvents();
-
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-
-    if (show_demo_window) {
-      ImGui::ShowDemoWindow(&show_demo_window);
-    }
-
-    {
-      static float f = 0.0f;
-      static int counter = 0;
-
-      ImGui::Begin("Hello, world!");
-
-      ImGui::Text("This is some useful text.");
-      ImGui::Checkbox("Demo Window", &show_demo_window);
-      ImGui::Checkbox("Another Window", &show_another_window);
-
-      ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-      ImGui::ColorEdit3("clear color", reinterpret_cast<float*>(&clear_color));
-
-      if (ImGui::Button("Button")) counter++;
-      ImGui::SameLine();
-      ImGui::Text("counter = %d", counter);
-
-      ImGui::Text(
-          "Application average %.3f ms/frame (%.1f FPS)",
-          1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-      ImGui::End();
-    }
-
-    if (show_another_window) {
-      ImGui::Begin("Another Window", &show_another_window);
-      ImGui::Text("Hello from another window!");
-      if (ImGui::Button("Close Me")) {
-        show_another_window = false;
-      }
-      ImGui::End();
-    }
-
-    ImGui::Render();
-    int display_w, display_h;
-    glfwGetFramebufferSize(window, &display_w, &display_h);
-    glViewport(0, 0, display_w, display_h);
-    glClearColor(
-      clear_color.x * clear_color.w,
-      clear_color.y * clear_color.w,
-      clear_color.z * clear_color.w,
-      clear_color.w);
-    glClear(GL_COLOR_BUFFER_BIT);
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-    glfwSwapBuffers(window);
-
-    FrameMark;
+  {
+    ZoneScopedN("init GLFW");
+    glfwSetErrorCallback(GlfwErrorCallback);
+    if (!glfwInit()) return 1;
   }
 
-  ImGui_ImplOpenGL3_Shutdown();
-  ImGui_ImplGlfw_Shutdown();
-  ImGui::DestroyContext();
+  GLFWwindow* window;
+  const char* glsl_version;
+  {
+    ZoneScopedN("setup Window");
 
-  glfwDestroyWindow(window);
-  glfwTerminate();
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 
+#   if defined(__APPLE__)
+      glsl_version = "#version 150";
+      glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+      glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+      glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+      glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#   else
+      glsl_version = "#version 130";
+      glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+      glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+      glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+      glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#   endif
+
+    window = glfwCreateWindow(1280, 720, "mnian", NULL, NULL);
+    if (window == NULL) return 1;
+    glfwMakeContextCurrent(window);
+    glfwSwapInterval(1);
+  }
+
+  {
+    ZoneScopedN("setup ImGUI");
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+
+    auto& io = ImGui::GetIO();
+    io.IniFilename = nullptr;
+
+    {
+      ZoneScopedN("build font");
+      {  // M+ code
+        static constexpr float kSize = 16.f;
+
+        ImFontConfig config;
+        config.FontDataOwnedByAtlas = false;
+        snprintf(config.Name, sizeof(config.Name), "M+ code");
+
+        io.Fonts->AddFontFromMemoryTTF(
+            const_cast<uint8_t*>(mnian::res::font::kMplusCode),
+            static_cast<int>(mnian::res::font::kMplusCodeSize),
+            kSize, &config, io.Fonts->GetGlyphRangesJapanese());
+      }
+      {  // FontAwesome
+        static constexpr float kSize = 18.f;
+
+        static const ImWchar range[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+
+        ImFontConfig config;
+        config.FontDataOwnedByAtlas = false;
+        config.MergeMode            = true;
+        config.GlyphMinAdvanceX     = kSize;
+        snprintf(config.Name, sizeof(config.Name), "FontAwesome");
+
+        io.Fonts->AddFontFromMemoryTTF(
+            const_cast<uint8_t*>(mnian::res::font::kFontAwesome),
+            static_cast<int>(mnian::res::font::kFontAwesomeSize),
+            kSize, &config, range);
+      }
+      io.Fonts->Build();
+    }
+
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init(glsl_version);
+  }
+
+  mnian::core::DeserializerRegistry reg;
+  mnian::SetupDeserializerRegistry(&reg);
+
+  mnian::App app(window, &reg);
+  glfwShowWindow(window);
+
+  tracy::SetThreadName("main");
+  while (app.alive()) {
+    FrameMarkStart("main");
+    {
+      ZoneScopedN("poll events");
+      glfwPollEvents();
+    }
+    {
+      ZoneScopedN("update");
+
+      ImGui_ImplOpenGL3_NewFrame();
+      ImGui_ImplGlfw_NewFrame();
+      ImGui::NewFrame();
+
+      app.Update();
+    }
+    {
+      ZoneScopedN("render display");
+      ImGui::Render();
+
+      int w, h;
+      glfwGetFramebufferSize(window, &w, &h);
+      glViewport(0, 0, w, h);
+
+      glClear(GL_COLOR_BUFFER_BIT);
+      ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    }
+    {
+      ZoneScopedN("swap buffer");
+      glfwSwapBuffers(window);
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    FrameMarkEnd("main");
+  }
+
+  {
+    ZoneScopedN("teardown ImGUI");
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+  }
+  {
+    ZoneScopedN("teardown GLFW");
+    glfwDestroyWindow(window);
+    glfwTerminate();
+  }
   return 0;
 }

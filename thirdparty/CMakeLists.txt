@@ -7,6 +7,12 @@ else()
 endif()
 
 
+# ---- fontawesome icons ----
+add_library(fontawesome INTERFACE)
+target_include_directories(fontawesome INTERFACE .)
+target_sources(fontawesome INTERFACE fontawesome.h)
+
+
 # ---- googletest ----
 # repository: https://github.com/google/googletest
 # license   : BSD-3-Clause

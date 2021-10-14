@@ -35,6 +35,7 @@ add_subdirectory(thirdparty EXCLUDE_FROM_ALL)
 
 add_subdirectory(mncore)
 add_subdirectory(mnian)
+add_subdirectory(mnres)
 
 if (MNIAN_BUILD_TEST)
   add_subdirectory(mntest)
