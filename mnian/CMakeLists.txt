@@ -16,6 +16,8 @@ target_sources(mnian
     registry.h
     widget_project_view.h
     widget_project_view.cc
+    worker.cc
+    worker.h
 )
 target_link_libraries(mnian
   PRIVATE
@@ -25,4 +27,6 @@ target_link_libraries(mnian
     glfw
     imgui
     tracy
+
+    $<$<PLATFORM_ID:Linux,Darwin>:pthread>
 )

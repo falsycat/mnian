@@ -84,7 +84,9 @@ int main(int, char**) {
   mnian::App app(window, &reg);
   glfwShowWindow(window);
 
+  tracy::SetThreadName("main");
   while (!glfwWindowShouldClose(window)) {
+    FrameMarkStart("main");
     {
       ZoneScopedN("poll events");
       glfwPollEvents();
@@ -97,6 +99,7 @@ int main(int, char**) {
       ImGui::NewFrame();
 
       app.Update();
+      while (app.mainQ().Dequeue()) continue;
     }
     {
       ZoneScopedN("render display");
@@ -115,7 +118,7 @@ int main(int, char**) {
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(30));
-    FrameMarkNamed("main");
+    FrameMarkEnd("main");
   }
 
   {

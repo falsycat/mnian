@@ -10,6 +10,8 @@
 
 namespace mnian {
 
+static constexpr size_t kCpuWorkerCount = 4;
+
 static constexpr const char* kInitialProject = R"({
   "editor": {
     "type" : "ImGUI",
@@ -37,7 +39,8 @@ App* App::instance_ = nullptr;
 
 
 App::App(GLFWwindow* window, const core::DeserializerRegistry* reg) :
-    iApp(&clock_, reg, &logger_, &fstore_), window_(window) {
+    iApp(&clock_, reg, &logger_, &fstore_),
+    window_(window), cpu_worker_(&cpuQ(), kCpuWorkerCount) {
   instance_ = this;
 
   ZoneScoped;

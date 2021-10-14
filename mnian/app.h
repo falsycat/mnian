@@ -12,6 +12,7 @@
 
 #include "mnian/file.h"
 #include "mnian/logger.h"
+#include "mnian/worker.h"
 
 
 namespace mnian {
@@ -54,6 +55,8 @@ class App : public core::iApp {
   TracyLogger logger_;
 
   FileStore fstore_;
+
+  CpuWorker cpu_worker_;
 };
 
 }  // namespace mnian
