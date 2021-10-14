@@ -1,5 +1,7 @@
 // No copyright
 
+#include <string.h>
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -11,6 +13,8 @@
 #include "mnian/app.h"
 #include "mnian/editor.h"
 #include "mnian/registry.h"
+
+#include "mnres/all.h"
 
 
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -73,6 +77,39 @@ int main(int, char**) {
     auto& io = ImGui::GetIO();
     io.WantSaveIniSettings = false;
 
+    {
+      ZoneScopedN("build font");
+      {  // M+ code
+        static constexpr float kSize = 16.f;
+
+        ImFontConfig config;
+        config.FontDataOwnedByAtlas = false;
+        snprintf(config.Name, sizeof(config.Name), "M+ code");
+
+        io.Fonts->AddFontFromMemoryTTF(
+            const_cast<uint8_t*>(mnian::res::font::kMplusCode),
+            static_cast<int>(mnian::res::font::kMplusCodeSize),
+            kSize, &config, io.Fonts->GetGlyphRangesJapanese());
+      }
+      {  // FontAwesome
+        static constexpr float kSize = 18.f;
+
+        static const ImWchar range[] = { 0xE005, 0xF8FF, 0 };
+
+        ImFontConfig config;
+        config.FontDataOwnedByAtlas = false;
+        config.MergeMode            = true;
+        config.GlyphMinAdvanceX     = kSize;
+        snprintf(config.Name, sizeof(config.Name), "FontAwesome");
+
+        io.Fonts->AddFontFromMemoryTTF(
+            const_cast<uint8_t*>(mnian::res::font::kFontAwesome),
+            static_cast<int>(mnian::res::font::kFontAwesomeSize),
+            kSize, &config, range);
+      }
+      io.Fonts->Build();
+    }
+
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
@@ -100,6 +137,10 @@ int main(int, char**) {
 
       app.Update();
       while (app.mainQ().Dequeue()) continue;
+
+#     if !defined(NDEBUG)
+        ImGui::ShowDemoWindow();
+#     endif
     }
     {
       ZoneScopedN("render display");

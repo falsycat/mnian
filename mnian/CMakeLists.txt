@@ -22,6 +22,7 @@ target_sources(mnian
 target_link_libraries(mnian
   PRIVATE
     mncore
+    mnres
     
     glew
     glfw

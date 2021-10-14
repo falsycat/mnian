@@ -8,7 +8,7 @@ namespace mnian {
 
 void ProjectViewWidget::Update() {
   ImGui::Begin("ProjectView");
-  ImGui::Text("hello world");
+  ImGui::Text("hello world [\xef\x80\x84] あいうえお");
   ImGui::End();
 }
 
