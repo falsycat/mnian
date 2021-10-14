@@ -1,6 +1,8 @@
 // No copyright
 #pragma once
 
+#include <GLFW/glfw3.h>
+
 #include <cassert>
 #include <string>
 
@@ -16,8 +18,13 @@ namespace mnian {
 
 class App : public core::iApp {
  public:
+  static App& instance() {
+    return *instance_;
+  }
+
+
   App() = delete;
-  explicit App(const core::DeserializerRegistry* reg);
+  App(GLFWwindow* window, const core::DeserializerRegistry* reg);
 
   App(const App&) = delete;
   App(App&&) = delete;
@@ -31,7 +38,17 @@ class App : public core::iApp {
 
   void Update();
 
+
+  GLFWwindow* window() const {
+    return window_;
+  }
+
  private:
+  static App* instance_;
+
+
+  GLFWwindow* window_;
+
   core::RealClock clock_;
 
   TracyLogger logger_;

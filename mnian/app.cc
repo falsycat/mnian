@@ -33,12 +33,14 @@ static constexpr const char* kInitialProject = R"({
 })";
 
 
-App::App(const core::DeserializerRegistry* reg) :
-    iApp(&clock_, reg, &logger_, &fstore_) {
+App* App::instance_ = nullptr;
+
+
+App::App(GLFWwindow* window, const core::DeserializerRegistry* reg) :
+    iApp(&clock_, reg, &logger_, &fstore_), window_(window) {
+  instance_ = this;
+
   ZoneScoped;
-
-  assert(reg);
-
   {
     ZoneScopedN("load initial project");
     std::stringstream st(kInitialProject);

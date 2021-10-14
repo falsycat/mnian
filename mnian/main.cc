@@ -9,6 +9,7 @@
 #include <Tracy.hpp>
 
 #include "mnian/app.h"
+#include "mnian/editor.h"
 #include "mnian/registry.h"
 
 
@@ -40,6 +41,8 @@ int main(int, char**) {
   const char* glsl_version;
   {
     ZoneScopedN("setup Window");
+
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 
 #   if defined(__APPLE__)
       glsl_version = "#version 150";
@@ -78,7 +81,9 @@ int main(int, char**) {
   mnian::core::DeserializerRegistry reg;
   mnian::SetupDeserializerRegistry(&reg);
 
-  mnian::App app(&reg);
+  mnian::App app(window, &reg);
+  glfwShowWindow(window);
+
   while (!glfwWindowShouldClose(window)) {
     {
       ZoneScopedN("poll events");
