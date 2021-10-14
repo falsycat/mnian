@@ -75,7 +75,7 @@ int main(int, char**) {
     ImGui::CreateContext();
 
     auto& io = ImGui::GetIO();
-    io.WantSaveIniSettings = false;
+    io.IniFilename = nullptr;
 
     {
       ZoneScopedN("build font");
