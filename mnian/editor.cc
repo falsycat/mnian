@@ -1,6 +1,8 @@
 // No copyright
 #include "mnian/editor.h"
 
+#include <imgui.h>
+
 #include <string>
 
 #include <Tracy.hpp>
@@ -9,8 +11,9 @@
 namespace mnian {
 
 std::unique_ptr<Editor> Editor::DeserializeParam(core::iDeserializer* des) {
-  auto ret = std::make_unique<Editor>();
+  ZoneScoped;
 
+  auto ret = std::make_unique<Editor>();
   {
     core::iDeserializer::ScopeGuard _(des, std::string("widgets"));
 
@@ -35,17 +38,29 @@ std::unique_ptr<Editor> Editor::DeserializeParam(core::iDeserializer* des) {
       }
     }
   }
+  {
+    core::iDeserializer::ScopeGuard _(des, std::string("settings"));
+
+    auto text = des->value<std::string>("");
+    ImGui::LoadIniSettingsFromMemory(text.data(), text.size());
+  }
   return ret;
 }
 
 void Editor::SerializeParam(core::iSerializer* serial) const {
+  ZoneScoped;
+
   core::iSerializer::ArrayGuard widgets(serial);
   for (const auto& w : widgets_) {
     widgets.Add(w.get());
   }
 
+  size_t settinglen;
+  auto setting = ImGui::SaveIniSettingsToMemory(&settinglen);
+
   core::iSerializer::MapGuard root(serial);
   root.Add("widgets", &widgets);
+  root.Add("settings", std::string(setting, settinglen));
 }
 
 }  // namespace mnian

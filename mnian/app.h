@@ -17,11 +17,7 @@ namespace mnian {
 class App : public core::iApp {
  public:
   App() = delete;
-  explicit App(const core::DeserializerRegistry* reg) :
-      iApp(&clock_, reg, &logger_, &fstore_) {
-    assert(reg);
-    Reset();
-  }
+  explicit App(const core::DeserializerRegistry* reg);
 
   App(const App&) = delete;
   App(App&&) = delete;
@@ -32,8 +28,6 @@ class App : public core::iApp {
 
   void Load(const std::string&) override;
   void Save() override;
-
-  void Reset();
 
   void Update();
 

@@ -66,22 +66,19 @@ int main(int, char**) {
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+
+    auto& io = ImGui::GetIO();
+    io.WantSaveIniSettings = false;
+
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
   }
 
   mnian::core::DeserializerRegistry reg;
-  {
-    ZoneScopedN("setup DeserializerRegistry");
-    mnian::SetupDeserializerRegistry(&reg);
-  }
+  mnian::SetupDeserializerRegistry(&reg);
 
   mnian::App app(&reg);
-  {
-    ZoneScopedN("setup App");
-  }
-
   while (!glfwWindowShouldClose(window)) {
     {
       ZoneScopedN("poll events");

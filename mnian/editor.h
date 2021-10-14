@@ -17,6 +17,7 @@ class Editor : public core::iEditor {
   static constexpr const char* kType = "ImGUI";
 
 
+  // Call after ImGui::CreateContext() and before ImGui::NewFrame().
   static std::unique_ptr<Editor> DeserializeParam(core::iDeserializer*);
 
 

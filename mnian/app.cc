@@ -33,21 +33,28 @@ static constexpr const char* kInitialProject = R"({
 })";
 
 
+App::App(const core::DeserializerRegistry* reg) :
+    iApp(&clock_, reg, &logger_, &fstore_) {
+  ZoneScoped;
+
+  assert(reg);
+
+  {
+    ZoneScopedN("load initial project");
+    std::stringstream st(kInitialProject);
+    auto des = core::iDeserializer::CreateJson(
+        this, &logger(), &registry(), &st);
+    project().Deserialize(des.get());
+  }
+}
+
+
 void App::Load(const std::string&) {
   assert(false);
 }
 
 void App::Save() {
   assert(false);
-}
-
-
-void App::Reset() {
-  ZoneScoped;
-
-  std::stringstream st(kInitialProject);
-  auto des = core::iDeserializer::CreateJson(this, &logger(), &registry(), &st);
-  project().Deserialize(des.get());
 }
 
 
