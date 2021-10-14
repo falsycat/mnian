@@ -5,7 +5,7 @@
 namespace mnian::res::font {
 
 const uint8_t kFontAwesome[] = {
-# include "font_fontawesome_regular_400.ttf.h"
+# include "font_fontawesome_solid_900.ttf.h"
 };
 const size_t kFontAwesomeSize = sizeof(kFontAwesome);
 

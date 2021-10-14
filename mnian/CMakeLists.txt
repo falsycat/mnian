@@ -24,6 +24,7 @@ target_link_libraries(mnian
     mncore
     mnres
     
+    fontawesome
     glew
     glfw
     imgui

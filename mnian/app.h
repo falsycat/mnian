@@ -3,6 +3,8 @@
 
 #include <GLFW/glfw3.h>
 
+#include <imgui.h>
+
 #include <cassert>
 #include <string>
 
@@ -37,15 +39,25 @@ class App : public core::iApp {
   void Load(const std::string&) override;
   void Save() override;
 
+  void Abort(const std::string& msg);
+
   void Update();
 
 
   GLFWwindow* window() const {
     return window_;
   }
+  bool alive() const {
+    return alive_;
+  }
 
  private:
   static App* instance_;
+
+
+  bool alive_ = true;
+
+  std::string panic_;
 
 
   GLFWwindow* window_;

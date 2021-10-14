@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#include <fontawesome.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -94,7 +95,7 @@ int main(int, char**) {
       {  // FontAwesome
         static constexpr float kSize = 18.f;
 
-        static const ImWchar range[] = { 0xE005, 0xF8FF, 0 };
+        static const ImWchar range[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
 
         ImFontConfig config;
         config.FontDataOwnedByAtlas = false;
@@ -122,7 +123,7 @@ int main(int, char**) {
   glfwShowWindow(window);
 
   tracy::SetThreadName("main");
-  while (!glfwWindowShouldClose(window)) {
+  while (app.alive()) {
     FrameMarkStart("main");
     {
       ZoneScopedN("poll events");
@@ -136,11 +137,6 @@ int main(int, char**) {
       ImGui::NewFrame();
 
       app.Update();
-      while (app.mainQ().Dequeue()) continue;
-
-#     if !defined(NDEBUG)
-        ImGui::ShowDemoWindow();
-#     endif
     }
     {
       ZoneScopedN("render display");

@@ -1,6 +1,7 @@
 // No copyright
 #include "mnian/widget_project_view.h"
 
+#include <fontawesome.h>
 #include <imgui.h>
 
 
@@ -8,7 +9,8 @@ namespace mnian {
 
 void ProjectViewWidget::Update() {
   ImGui::Begin("ProjectView");
-  ImGui::Text("hello world [\xef\x80\x84] あいうえお");
+  ImGui::Text("hello world [" ICON_FA_HEART "] あいうえお");
+  ImGui::Text("hello world [" ICON_FA_SKULL "] あいうえお");
   ImGui::End();
 }
 

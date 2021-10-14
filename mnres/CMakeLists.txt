@@ -13,7 +13,7 @@ target_include_directories(mnres
 )
 
 set(files
-  font_fontawesome_regular_400.ttf
+  font_fontawesome_solid_900.ttf
   font_mpluscode_regular.ttf
 )
 foreach (file ${files})
