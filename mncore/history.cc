@@ -224,17 +224,16 @@ void HistoryItem::Serialize(iSerializer* serial) const {
   assert(serial);
 
   iSerializer::ArrayGuard branch(serial);
-  iSerializer::MapGuard   map(serial);
+  for (auto item : branch_) {
+    branch.Add(item->id_);
+  }
 
+  iSerializer::MapGuard map(serial);
   map.Add("id",        id_);
   map.Add("createdAt", static_cast<int64_t>(created_at_));
   map.Add("marked",    marked_);
   map.Add("command",   command_.get());
   map.Add("branch",    &branch);
-
-  for (auto item : branch_) {
-    branch.Add(item->id_);
-  }
 }
 
 }  // namespace mnian::core
