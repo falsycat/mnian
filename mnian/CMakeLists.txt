@@ -7,13 +7,12 @@ target_sources(mnian
     app.cc
     app.h
     dir.h
-    editor.cc
-    editor.h
     file.cc
     file.h
     logger.h
     main.cc
     registry.h
+    widget.h
     widget_project_view.h
     widget_project_view.cc
     worker.cc

@@ -21,24 +21,23 @@ static constexpr size_t kCpuWorkerCount = 4;
 static constexpr const char* kFileName = "mnian.json";
 
 static constexpr const char* kInitialProject = R"({
-  "editor": {
-    "type" : "ImGUI",
-    "param": {
-      "widgets": [
-        {
+  "project": {
+    "root": {
+      "type" : "GenericDir",
+      "param": {},
+    },
+    "nstore": [],
+    "wstore": [
+      {
+        "id": 0,
+        "entity": {
           "type" : "ProjectView",
-          "param": {
-          }
+          "param": {}
         },
-      ],
+      },
+    ],
+    "history": {
     },
-  },
-  "root": {
-    "type" : "GenericDir",
-    "param": {
-    },
-  },
-  "history": {
   },
 })";
 
@@ -61,43 +60,72 @@ App::App(GLFWwindow* window, const core::DeserializerRegistry* reg) :
     ZoneScopedN("load existing project");
 
     std::ifstream file(kFileName);
-    auto json =
-        core::iDeserializer::CreateJson(this, &logger(), &registry(), &file);
-    if (!json) {
-      TracyMessageLCS("invalid JSON", tracy::Color::Red, true);
-      Abort("failed to parse JSON");
+    if (!file) {
+      TracyMessageLCS("failed to open file to read", tracy::Color::Red, true);
+      Panic("failed to open file");
       return;
     }
-    if (!project().Deserialize(json.get())) {
-      Abort("failed to load existing project");
+
+    auto des =
+        core::iDeserializer::CreateJson(this, &logger(), &registry(), &file);
+    if (!des) {
+      TracyMessageLCS("invalid JSON", tracy::Color::Red, true);
+      Panic("failed to parse JSON");
+      return;
+    }
+    if (!Deserialize(des.get())) {
+      Panic("failed to load existing project");
       return;
     }
   } else {
     ZoneScopedN("load initial project");
     std::stringstream st(kInitialProject);
-    auto des = core::iDeserializer::CreateJson(
-        this, &logger(), &registry(), &st);
-    project().Deserialize(des.get());
+
+    auto des =
+        core::iDeserializer::CreateJson(this, &logger(), &registry(), &st);
+    assert(des);
+
+    if (!Deserialize(des.get())) {
+      assert(false);
+    }
   }
 }
 
 
-void App::Load(const std::string&) {
-  assert(false);
-}
-
 void App::Save() {
-  assert(false);
+  std::ofstream file(kFileName);
+  if (!file) {
+    TracyMessageLCS("failed to open file to write", tracy::Color::Red, true);
+    return;
+  }
+  auto des = core::iSerializer::CreateJson(&file);
+  Serialize(des.get());
 }
 
 
-void App::Abort(const std::string& msg) {
+void App::Panic(const std::string& msg) {
+  assert(msg.size());
   panic_ = msg;
+}
+
+void App::Quit() {
+  alive_ = false;
+  Save();
 }
 
 
 void App::Update() {
   ZoneScoped;
+
+  // app menu
+  if (ImGui::BeginMainMenuBar()) {
+    if (ImGui::BeginMenu("App")) {
+      if (ImGui::MenuItem("Save", "S")) { Save(); }
+      if (ImGui::MenuItem("Quit", "Q")) { Quit(); }
+      ImGui::EndMenu();
+    }
+    ImGui::EndMainMenuBar();
+  }
 
   // panic popup
   if (ImGui::BeginPopupModal(kPanicPopupId, nullptr, kPanicPopupFlags)) {
@@ -109,7 +137,6 @@ void App::Update() {
     ImGui::Text(ICON_FA_SKULL_CROSSBONES);
 
     ImGui::Text("%s", panic_.c_str());
-    ImGui::Separator();
 
     const auto size = ImVec2(region.x, 0);
     if (ImGui::Button("ABORT", size)) {
@@ -128,7 +155,7 @@ void App::Update() {
 
   // close window
   if (glfwWindowShouldClose(window_)) {
-    alive_ = false;
+    Quit();
     return;
   }
 
@@ -136,12 +163,72 @@ void App::Update() {
   while (mainQ().Dequeue()) continue;
 
   // update editor
-  project().editor().Update();
+  project().wstore().Update();
 
   // debug
 # if !defined(NDEBUG)
     ImGui::ShowDemoWindow();
 # endif
+}
+
+
+bool App::Deserialize(core::iDeserializer* des) {
+  {
+    core::iDeserializer::ScopeGuard _(des, std::string("window"));
+
+    des->Enter(std::string("x"));
+    const auto x = des->value(int{100});
+    des->Leave();
+
+    des->Enter(std::string("y"));
+    const auto y = des->value(int{100});
+    des->Leave();
+
+    des->Enter(std::string("w"));
+    const auto w = des->value(int{640});
+    des->Leave();
+
+    des->Enter(std::string("h"));
+    const auto h = des->value(int{480});
+    des->Leave();
+
+    glfwSetWindowPos(window_, x, y);
+    glfwSetWindowSize(window_, w, h);
+  }
+
+  {
+    core::iDeserializer::ScopeGuard _(des, std::string("imgui"));
+
+    const auto settings = des->value<std::string>("");
+    ImGui::LoadIniSettingsFromMemory(settings.data(), settings.size());
+  }
+
+  {
+    core::iDeserializer::ScopeGuard _(des, std::string("project"));
+    if (!project().Deserialize(des)) return false;
+  }
+  return true;
+}
+
+void App::Serialize(core::iSerializer* serial) {
+  core::iSerializer::MapGuard window(serial);
+  {
+    int x, y, w, h;
+    glfwGetWindowPos(window_, &x, &y);
+    glfwGetWindowSize(window_, &w, &h);
+    window.Add("x", static_cast<int64_t>(x));
+    window.Add("y", static_cast<int64_t>(y));
+    window.Add("w", static_cast<int64_t>(w));
+    window.Add("h", static_cast<int64_t>(h));
+  }
+
+  size_t imgui_len;
+  const auto imgui = ImGui::SaveIniSettingsToMemory(&imgui_len);
+
+  core::iSerializer::MapGuard root(serial);
+  root.Add("window", &window);
+  root.Add("imgui", std::string(imgui, imgui_len));
+  root.Add("project", &project());
 }
 
 }  // namespace mnian
