@@ -81,8 +81,10 @@ class iApp {
   iApp& operator=(iApp&&) = delete;
 
 
-  virtual void Load(const std::string&) = 0;
   virtual void Save() = 0;
+
+  virtual void Panic(const std::string&) = 0;
+  virtual void Quit() = 0;
 
 
   const iClock& clock() {

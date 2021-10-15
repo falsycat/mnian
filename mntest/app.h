@@ -27,8 +27,10 @@ class MockApp : public core::iApp {
   MockApp& operator=(MockApp&&) = delete;
 
 
-  MOCK_METHOD(void, Load, (const std::string&), (override));
   MOCK_METHOD(void, Save, (), (override));
+
+  MOCK_METHOD(void, Panic, (const std::string&), (override));
+  MOCK_METHOD(void, Quit, (), (override));
 };
 
 }  // namespace mnian::test
