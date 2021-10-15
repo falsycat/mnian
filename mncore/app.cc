@@ -7,7 +7,7 @@
 
 namespace mnian::core {
 
-bool Project::Deserialize(iDeserializer* des) {
+bool iApp::Project::Deserialize(iDeserializer* des) {
   // Deserializes a root.
   des->Enter(std::string("root"));
   auto root = des->DeserializeObject<iDirItem>();
@@ -27,18 +27,16 @@ bool Project::Deserialize(iDeserializer* des) {
   }
 
   root.release();
-  auto root_dir = std::unique_ptr<Dir>(root_dir_ptr);
+  root_ = std::unique_ptr<Dir>(root_dir_ptr);
 
-  // Deserializes an editor.
-  des->Enter(std::string("editor"));
-  auto editor = des->DeserializeObject<iEditor>();
-  des->Leave();
-
-  if (!editor) {
-    des->logger().MNCORE_LOGGER_ERROR("editor is broken");
+  // Deserializes a wstore.
+  des->Enter(std::string("wstore"));
+  if (!wstore_.Deserialize(des)) {
+    des->logger().MNCORE_LOGGER_ERROR("broken wstore has been dropped");
     des->LogLocation();
-    return false;
+    wstore_.Clear();
   }
+  des->Leave();
 
   // Deserializes history.
   des->Enter(std::string("history"));
@@ -49,17 +47,13 @@ bool Project::Deserialize(iDeserializer* des) {
   }
   des->Leave();
 
-  // Saves deserialized instances.
-  root_   = std::move(root_dir);
-  editor_ = std::move(editor);
-
   return true;
 }
 
-void Project::Serialize(iSerializer* serial) const {
+void iApp::Project::Serialize(iSerializer* serial) const {
   iSerializer::MapGuard map(serial);
   map.Add("root",    root_.get());
-  map.Add("editor",  editor_.get());
+  map.Add("wstore",  &wstore_);
   map.Add("history", &history_);
 }
 

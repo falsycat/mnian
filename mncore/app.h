@@ -8,55 +8,58 @@
 
 #include "mncore/clock.h"
 #include "mncore/dir.h"
-#include "mncore/editor.h"
 #include "mncore/file.h"
 #include "mncore/history.h"
 #include "mncore/logger.h"
 #include "mncore/serialize.h"
 #include "mncore/task.h"
+#include "mncore/widget.h"
 
 
 namespace mnian::core {
 
-class Project final : public iSerializable {
- public:
-  Project() = delete;
-  explicit Project(const iClock* clock) : history_(clock) {
-  }
-
-  Project(const Project&) = delete;
-  Project(Project&&) = delete;
-
-  Project& operator=(const Project&) = delete;
-  Project& operator=(Project&&) = delete;
-
-
-  bool Deserialize(iDeserializer*);
-
-  void Serialize(iSerializer*) const override;
-
-
-  History& history() {
-    return history_;
-  }
-  Dir& root() {
-    return *root_;
-  }
-  iEditor& editor() {
-    return *editor_;
-  }
-
- private:
-  History history_;
-
-  std::unique_ptr<Dir> root_;
-
-  std::unique_ptr<iEditor> editor_;
-};
-
 
 class iApp {
  public:
+  class Project final : public iSerializable {
+   public:
+    Project() = delete;
+    explicit Project(const iClock* clock) : history_(clock) {
+    }
+
+    Project(const Project&) = delete;
+    Project(Project&&) = delete;
+
+    Project& operator=(const Project&) = delete;
+    Project& operator=(Project&&) = delete;
+
+
+    bool Deserialize(iDeserializer*);
+
+    void Serialize(iSerializer*) const override;
+
+
+    Dir& root() {
+      return *root_;
+    }
+    WidgetStore& wstore() {
+      return wstore_;
+    }
+    History& history() {
+      return history_;
+    }
+
+   private:
+    std::unique_ptr<Dir> root_;
+
+    // TODO(falsycat): node store
+
+    WidgetStore wstore_;
+
+    History history_;
+  };
+
+
   iApp() = delete;
   iApp(const iClock*               clock,
        const DeserializerRegistry* reg,
