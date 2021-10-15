@@ -182,6 +182,27 @@ TEST(Dir, FindIndexOf) {
 }
 
 
+TEST(FileRef, ParseFlags) {
+  ASSERT_EQ(core::FileRef::ParseFlags("rrww"),
+            core::FileRef::kReadable | core::FileRef::kWritable);
+  ASSERT_EQ(core::FileRef::ParseFlags("rw"),
+            core::FileRef::kReadable | core::FileRef::kWritable);
+  ASSERT_EQ(core::FileRef::ParseFlags("r"),
+            core::FileRef::kReadable);
+  ASSERT_EQ(core::FileRef::ParseFlags("rr"),
+            core::FileRef::kReadable);
+  ASSERT_EQ(core::FileRef::ParseFlags("w"),
+            core::FileRef::kWritable);
+  ASSERT_EQ(core::FileRef::ParseFlags("ww"),
+            core::FileRef::kWritable);
+  ASSERT_EQ(core::FileRef::ParseFlags(""), 0);
+
+  ASSERT_FALSE(core::FileRef::ParseFlags("Rw"));
+  ASSERT_FALSE(core::FileRef::ParseFlags("rW"));
+  ASSERT_FALSE(core::FileRef::ParseFlags("HELLO"));
+  ASSERT_FALSE(core::FileRef::ParseFlags("world"));
+}
+
 TEST(FileRef, Visit) {
   MockFile file("test");
 

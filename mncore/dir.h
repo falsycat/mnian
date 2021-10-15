@@ -294,7 +294,7 @@ class FileRef : public iDirItem {
   using Flags = uint16_t;
 
 
-  // TODO(falsycat): add deserialize method
+  static std::optional<Flags> ParseFlags(const std::string&);
 
 
   FileRef() = delete;
@@ -383,9 +383,6 @@ class FileRef : public iDirItem {
 // FileRef is a DirItem which wraps iNode object.
 class NodeRef : public iDirItem {
  public:
-  // TODO(falsycat): add deserialize method
-
-
   NodeRef() = delete;
   NodeRef(ActionList&&             actions,
           const char*              type,
