@@ -36,10 +36,10 @@ class App : public core::iApp {
   App& operator=(App&&) = delete;
 
 
-  void Load(const std::string&) override;
   void Save() override;
 
-  void Abort(const std::string& msg);
+  void Panic(const std::string& msg) override;
+  void Quit() override;
 
   void Update();
 
@@ -53,6 +53,10 @@ class App : public core::iApp {
 
  private:
   static App* instance_;
+
+
+  bool Deserialize(core::iDeserializer* des);
+  void Serialize(core::iSerializer* serial);
 
 
   bool alive_ = true;

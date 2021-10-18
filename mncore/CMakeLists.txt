@@ -10,19 +10,21 @@ target_sources(mncore
     command.h
     conv.h
     dir.h
-    editor.h
     file.h
     logger.h
     node.h
     serialize.h
     task.h
+    widget.h
   PRIVATE
     app.cc
     command.cc
     dir.cc
     history.cc
+    node.cc
     serialize.cc
     serialize_json.cc
+    widget.cc
 )
 
 target_link_libraries(mncore

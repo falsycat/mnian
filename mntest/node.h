@@ -26,10 +26,11 @@ class MockNodeObserver : public core::iNodeObserver {
   MockNodeObserver& operator=(MockNodeObserver&&) = delete;
 
 
-  MOCK_METHOD(void, ObserveAdd, (), (override));
-  MOCK_METHOD(void, ObserveRemove, (), (override));
-  MOCK_METHOD(void, ObserveDelete, (), (override));
-  MOCK_METHOD(void, ObserveUpdate, (), (override));
+  MOCK_METHOD(void, ObserveNew,          (), (override));
+  MOCK_METHOD(void, ObserveDelete,       (), (override));
+  MOCK_METHOD(void, ObserveActivate,     (), (override));
+  MOCK_METHOD(void, ObserveDeactivate,   (), (override));
+  MOCK_METHOD(void, ObserveUpdate,       (), (override));
   MOCK_METHOD(void, ObserveSocketChange, (), (override));
 };
 
@@ -55,8 +56,6 @@ class MockNode : public core::iNode {
   MOCK_METHOD(void, SerializeParam, (core::iSerializer*), (const override));
 
 
-  using iNode::NotifyAdd;
-  using iNode::NotifyRemove;
   using iNode::NotifyUpdate;
 
   using iNode::OpenInput;

@@ -3,12 +3,12 @@
 
 #include <memory>
 
-#include "mncore/editor.h"
+#include "mnian/widget.h"
 
 
 namespace mnian {
 
-class ProjectViewWidget : public core::iWidget {
+class ProjectViewWidget : public ImGuiWidget {
  public:
   static constexpr const char* kType = "ProjectView";
 
@@ -17,7 +17,7 @@ class ProjectViewWidget : public core::iWidget {
       core::iDeserializer*);
 
 
-  ProjectViewWidget() : iWidget(kType) {
+  ProjectViewWidget() : ImGuiWidget(kType) {
   }
 
   ProjectViewWidget(const ProjectViewWidget&) = delete;

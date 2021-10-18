@@ -294,7 +294,7 @@ class FileRef : public iDirItem {
   using Flags = uint16_t;
 
 
-  // TODO(falsycat): add deserialize method
+  static std::optional<Flags> ParseFlags(const std::string&);
 
 
   FileRef() = delete;
@@ -383,19 +383,23 @@ class FileRef : public iDirItem {
 // FileRef is a DirItem which wraps iNode object.
 class NodeRef : public iDirItem {
  public:
-  // TODO(falsycat): add deserialize method
-
-
   NodeRef() = delete;
   NodeRef(ActionList&&             actions,
           const char*              type,
+          NodeStore*               store,
           std::unique_ptr<iNode>&& node) :
       iDirItem(std::move(actions), type),
-      node_(std::move(node)), observer_(this) {
+      store_(store), node_(store_->Add(std::move(node))), observer_(this) {
+    assert(store_);
     assert(node_);
   }
-  NodeRef(ActionList&& actions, std::unique_ptr<iNode>&& file) :
-      NodeRef(std::move(actions), "NodeRef", std::move(file)) {
+  NodeRef(ActionList&&             actions,
+          NodeStore*               store,
+          std::unique_ptr<iNode>&& node) :
+      NodeRef(std::move(actions), "NodeRef", store, std::move(node)) {
+  }
+  ~NodeRef() {
+    store_->Drop(node_);
   }
 
   NodeRef(const NodeRef&) = delete;
@@ -433,7 +437,9 @@ class NodeRef : public iDirItem {
   };
 
 
-  std::unique_ptr<iNode> node_;
+  NodeStore* store_;
+
+  iNode* node_;
 
   NodeObserver observer_;
 };

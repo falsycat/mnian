@@ -12,7 +12,6 @@
 #include <Tracy.hpp>
 
 #include "mnian/app.h"
-#include "mnian/editor.h"
 #include "mnian/registry.h"
 
 #include "mnres/all.h"

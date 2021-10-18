@@ -182,6 +182,27 @@ TEST(Dir, FindIndexOf) {
 }
 
 
+TEST(FileRef, ParseFlags) {
+  ASSERT_EQ(core::FileRef::ParseFlags("rrww"),
+            core::FileRef::kReadable | core::FileRef::kWritable);
+  ASSERT_EQ(core::FileRef::ParseFlags("rw"),
+            core::FileRef::kReadable | core::FileRef::kWritable);
+  ASSERT_EQ(core::FileRef::ParseFlags("r"),
+            core::FileRef::kReadable);
+  ASSERT_EQ(core::FileRef::ParseFlags("rr"),
+            core::FileRef::kReadable);
+  ASSERT_EQ(core::FileRef::ParseFlags("w"),
+            core::FileRef::kWritable);
+  ASSERT_EQ(core::FileRef::ParseFlags("ww"),
+            core::FileRef::kWritable);
+  ASSERT_EQ(core::FileRef::ParseFlags(""), 0);
+
+  ASSERT_FALSE(core::FileRef::ParseFlags("Rw"));
+  ASSERT_FALSE(core::FileRef::ParseFlags("rW"));
+  ASSERT_FALSE(core::FileRef::ParseFlags("HELLO"));
+  ASSERT_FALSE(core::FileRef::ParseFlags("world"));
+}
+
 TEST(FileRef, Visit) {
   MockFile file("test");
 
@@ -252,18 +273,21 @@ TEST(FileRef, ModifyFlags) {
 }
 
 
-TEST(iNodeRef, Visit) {
-  core::NodeRef nref({}, std::make_unique<MockNode>());
+TEST(NodeRef, Visit) {
+  core::NodeStore store;
+  core::NodeRef nref({}, &store, std::make_unique<MockNode>());
 
   ::testing::StrictMock<MockDirItemVisitor> visitor;
   EXPECT_CALL(visitor, VisitNode(&nref));
   nref.Visit(&visitor);
 }
 
-TEST(iNodeRef, EntityUpdate) {
+TEST(NodeRef, EntityUpdate) {
+  core::NodeStore store;
+
   auto node     = std::make_unique<MockNode>();
   auto node_ptr = node.get();
-  core::NodeRef nref({}, std::move(node));
+  core::NodeRef nref({}, &store, std::move(node));
 
   ::testing::StrictMock<MockDirItemObserver> observer(&nref);
   EXPECT_CALL(observer, ObserveUpdate());

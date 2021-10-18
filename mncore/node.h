@@ -4,6 +4,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -38,19 +39,23 @@ class iNodeObserver {
   iNodeObserver& operator=(iNodeObserver&&) = delete;
 
 
+  // Be called when the node is registered to NodeStore.
+  virtual void ObserveNew() {
+  }
+
+  // Be called when the node is deleted completely from the entire project.
+  // There's no chance for the node to be used anymore.
+  virtual void ObserveDelete() {
+  }
+
   // Be called when the node is added to the project including a case in
   // recovering from History.
-  virtual void ObserveAdd() {
+  virtual void ObserveActivate() {
   }
 
   // Be called when the node is removed from the project. However it's
-  // still alive in HistoryItem, and it can be recovered.
-  virtual void ObserveRemove() {
-  }
-
-  // Be called when the node is deleted from the memory. It'll never
-  // resuscitate again, and target() method will get invalid.
-  virtual void ObserveDelete() {
+  // still alive in History and can be recovered.
+  virtual void ObserveDeactivate() {
   }
 
   // Be called when the node's output is affected by changes of parameters or
@@ -78,6 +83,8 @@ class iNode : public iActionable, public iPolymorphicSerializable {
   friend class iNodeObserver;
   friend class NodeStore;
 
+
+  using Id = uint64_t;
 
   struct Socket {
    public:
@@ -153,6 +160,21 @@ class iNode : public iActionable, public iPolymorphicSerializable {
   virtual std::shared_ptr<iTask> QueueTask() = 0;
 
 
+  void NotifyActivate() {
+    for (auto observer : observers_) {
+      observer->ObserveActivate();
+    }
+  }
+  void NotifyDeactivate() {
+    for (auto observer : observers_) {
+      observer->ObserveDeactivate();
+    }
+  }
+
+
+  Id id() const {
+    return id_;
+  }
   const std::vector<Socket>& input() const {
     return input_;
   }
@@ -161,16 +183,6 @@ class iNode : public iActionable, public iPolymorphicSerializable {
   }
 
  protected:
-  void NotifyAdd() {
-    for (auto observer : observers_) {
-      observer->ObserveAdd();
-    }
-  }
-  void NotifyRemove() {
-    for (auto observer : observers_) {
-      observer->ObserveRemove();
-    }
-  }
   void NotifyUpdate() {
     for (auto observer : observers_) {
       observer->ObserveUpdate();
@@ -197,11 +209,19 @@ class iNode : public iActionable, public iPolymorphicSerializable {
   }
 
  private:
+  void NotifyNew() {
+    for (auto observer : observers_) {
+      observer->ObserveNew();
+    }
+  }
   void NotifySocketChange() {
     for (auto observer : observers_) {
       observer->ObserveSocketChange();
     }
   }
+
+
+  Id id_;
 
   std::vector<Socket> input_;
   std::vector<Socket> output_;
@@ -234,6 +254,69 @@ class iNodeFactory : public iActionable {
 
  private:
   std::string name_;
+};
+
+
+// A store for all nodes in the entire of project including History.
+class NodeStore final : public iSerializable {
+ public:
+  NodeStore() = default;
+
+  NodeStore(const NodeStore&) = delete;
+  NodeStore(NodeStore&&) = delete;
+
+  NodeStore& operator=(const NodeStore&) = delete;
+  NodeStore& operator=(NodeStore&&) = delete;
+
+
+  // Adds new node to this store.
+  iNode* Add(std::unique_ptr<iNode>&& node) {
+    const auto id = next_++;
+
+    auto ptr = node.get();
+    items_[id] = std::move(node);
+
+    ptr->id_ = id;
+    ptr->NotifyNew();
+    return ptr;
+  }
+  iNode* Create(iNodeFactory* f) {
+    return Add(f->Create());
+  }
+
+  // Deletes the node completely. This means that the node will never be used
+  // anymore.
+  bool Drop(iNode::Id id) {
+    auto itr = items_.find(id);
+    if (itr == items_.end()) return false;
+    items_.erase(itr);
+    return true;
+  }
+  bool Drop(const iNode* node) {
+    return Drop(node->id());
+  }
+
+  // Drops all nodes.
+  void Clear() {
+    items_.clear();
+    next_ = 0;
+  }
+
+
+  iNode* Find(iNode::Id id) const {
+    auto itr = items_.find(id);
+    if (itr == items_.end()) return nullptr;
+    return itr->second.get();
+  }
+
+
+  bool Deserialize(iDeserializer*);
+  void Serialize(iSerializer*) const override;
+
+ private:
+  std::unordered_map<iNode::Id, std::unique_ptr<iNode>> items_;
+
+  iNode::Id next_;
 };
 
 

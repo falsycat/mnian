@@ -65,6 +65,18 @@ void Dir::SerializeParam(iSerializer* serializer) const {
 }
 
 
+std::optional<FileRef::Flags> FileRef::ParseFlags(const std::string& v) {
+  Flags flags = kNone;
+  for (auto c : v) {
+    switch (c) {
+    case 'r': flags = flags | kReadable; break;
+    case 'w': flags = flags | kWritable; break;
+    default: return std::nullopt;
+    }
+  }
+  return flags;
+}
+
 void FileRef::SerializeParam(iSerializer* serializer) const {
   iSerializer::MapGuard map(serializer);
   map.Add("url", file_->url());
@@ -77,7 +89,7 @@ void FileRef::SerializeParam(iSerializer* serializer) const {
 
 
 void NodeRef::SerializeParam(iSerializer* serializer) const {
-  node_->Serialize(serializer);
+  serializer->SerializeValue(static_cast<int64_t>(node_->id()));
 }
 
 }  // namespace mnian::core

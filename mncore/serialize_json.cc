@@ -47,6 +47,7 @@ class JsonSerializer : public iSerializer {
       stack_.push({State::kObject, n});
     } else {
       writer_.EndObject();
+      Pop();
     }
   }
   void SerializeArray(size_t n) override {
@@ -55,6 +56,7 @@ class JsonSerializer : public iSerializer {
       stack_.push({State::kArray, n});
     } else {
       writer_.EndArray();
+      Pop();
     }
   }
   void SerializeKey(const std::string& key) override {
