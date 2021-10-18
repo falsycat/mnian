@@ -29,10 +29,19 @@ bool iApp::Project::Deserialize(iDeserializer* des) {
   root.release();
   root_ = std::unique_ptr<Dir>(root_dir_ptr);
 
-  // Deserializes a wstore.
+  // Deserializes nstore.
+  des->Enter(std::string("nstore"));
+  if (!nstore_.Deserialize(des)) {
+    des->logger().MNCORE_LOGGER_ERROR("broken nstore has been dropped");
+    des->LogLocation();
+    nstore_.Clear();
+  }
+  des->Leave();
+
+  // Deserializes wstore.
   des->Enter(std::string("wstore"));
   if (!wstore_.Deserialize(des)) {
-    des->logger().MNCORE_LOGGER_ERROR("broken wstore has been dropped");
+    des->logger().MNCORE_LOGGER_WARN("broken wstore has been dropped");
     des->LogLocation();
     wstore_.Clear();
   }
@@ -53,6 +62,7 @@ bool iApp::Project::Deserialize(iDeserializer* des) {
 void iApp::Project::Serialize(iSerializer* serial) const {
   iSerializer::MapGuard map(serial);
   map.Add("root",    root_.get());
+  map.Add("nstore",  &nstore_);
   map.Add("wstore",  &wstore_);
   map.Add("history", &history_);
 }

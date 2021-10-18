@@ -273,18 +273,21 @@ TEST(FileRef, ModifyFlags) {
 }
 
 
-TEST(iNodeRef, Visit) {
-  core::NodeRef nref({}, std::make_unique<MockNode>());
+TEST(NodeRef, Visit) {
+  core::NodeStore store;
+  core::NodeRef nref({}, &store, std::make_unique<MockNode>());
 
   ::testing::StrictMock<MockDirItemVisitor> visitor;
   EXPECT_CALL(visitor, VisitNode(&nref));
   nref.Visit(&visitor);
 }
 
-TEST(iNodeRef, EntityUpdate) {
+TEST(NodeRef, EntityUpdate) {
+  core::NodeStore store;
+
   auto node     = std::make_unique<MockNode>();
   auto node_ptr = node.get();
-  core::NodeRef nref({}, std::move(node));
+  core::NodeRef nref({}, &store, std::move(node));
 
   ::testing::StrictMock<MockDirItemObserver> observer(&nref);
   EXPECT_CALL(observer, ObserveUpdate());

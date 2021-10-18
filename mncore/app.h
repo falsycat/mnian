@@ -42,6 +42,9 @@ class iApp {
     Dir& root() {
       return *root_;
     }
+    NodeStore& nstore() {
+      return nstore_;
+    }
     WidgetStore& wstore() {
       return wstore_;
     }
@@ -52,7 +55,7 @@ class iApp {
    private:
     std::unique_ptr<Dir> root_;
 
-    // TODO(falsycat): node store
+    NodeStore nstore_;
 
     WidgetStore wstore_;
 

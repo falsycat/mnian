@@ -89,7 +89,7 @@ void FileRef::SerializeParam(iSerializer* serializer) const {
 
 
 void NodeRef::SerializeParam(iSerializer* serializer) const {
-  node_->Serialize(serializer);
+  serializer->SerializeValue(static_cast<int64_t>(node_->id()));
 }
 
 }  // namespace mnian::core
