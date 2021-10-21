@@ -1,7 +1,6 @@
 // No copyright
 #include "mnian/app.h"
 
-#include <fontawesome.h>
 #include <GLFW/glfw3.h>
 #include <imgui.h>
 
@@ -13,6 +12,10 @@
 
 #include "mncore/serialize.h"
 
+#include "mnian/app_menu.h"
+#include "mnian/app_panic_popup.h"
+#include "mnian/app_project.h"
+
 
 namespace mnian {
 
@@ -20,41 +23,17 @@ static constexpr size_t kCpuWorkerCount = 4;
 
 static constexpr const char* kFileName = "mnian.json";
 
-static constexpr const char* kInitialProject = R"({
-  "project": {
-    "root": {
-      "type" : "GenericDir",
-      "param": {},
-    },
-    "nstore": [],
-    "wstore": [
-      {
-        "id": 0,
-        "entity": {
-          "type" : "ProjectView",
-          "param": {}
-        },
-      },
-    ],
-    "history": {
-    },
-  },
-})";
-
-
-static constexpr const char* kPanicPopupId = "PANIC##mnian/app";
-
-static constexpr auto kPanicPopupFlags =
-    ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-
 
 App* App::instance_ = nullptr;
 
 
 App::App(GLFWwindow* window, const core::DeserializerRegistry* reg) :
     iApp(&clock_, reg, &logger_, &fstore_),
-    window_(window), cpu_worker_(&cpuQ(), kCpuWorkerCount) {
+    window_(window), cpu_worker_(&cpuQ(), kCpuWorkerCount),
+    menu_(std::make_unique<Menu>(this)),
+    panic_(std::make_unique<PanicPopup>(&lang())) {
   instance_ = this;
+  BuildDefaultLang();
 
   if (std::filesystem::exists(kFileName)) {
     ZoneScopedN("load existing project");
@@ -62,7 +41,7 @@ App::App(GLFWwindow* window, const core::DeserializerRegistry* reg) :
     std::ifstream file(kFileName);
     if (!file) {
       TracyMessageLCS("failed to open file to read", tracy::Color::Red, true);
-      Panic("failed to open file");
+      Panic(lang().Translate("ERR_FILE_OPEN"));
       return;
     }
 
@@ -70,11 +49,11 @@ App::App(GLFWwindow* window, const core::DeserializerRegistry* reg) :
         core::iDeserializer::CreateJson(this, &logger(), &registry(), &file);
     if (!des) {
       TracyMessageLCS("invalid JSON", tracy::Color::Red, true);
-      Panic("failed to parse JSON");
+      Panic(lang().Translate("ERR_PARSE_JSON"));
       return;
     }
     if (!Deserialize(des.get())) {
-      Panic("failed to load existing project");
+      Panic(lang().Translate("ERR_DESERIALIZE"));
       return;
     }
   } else {
@@ -90,6 +69,8 @@ App::App(GLFWwindow* window, const core::DeserializerRegistry* reg) :
     }
   }
 }
+App::~App() {
+}
 
 
 void App::Save() {
@@ -104,8 +85,7 @@ void App::Save() {
 
 
 void App::Panic(const std::string& msg) {
-  assert(msg.size());
-  panic_ = msg;
+  panic_->Open(msg);
 }
 
 void App::Quit() {
@@ -117,41 +97,14 @@ void App::Quit() {
 void App::Update() {
   ZoneScoped;
 
-  // app menu
-  if (ImGui::BeginMainMenuBar()) {
-    if (ImGui::BeginMenu("App")) {
-      if (ImGui::MenuItem("Save", "S")) { Save(); }
-      if (ImGui::MenuItem("Quit", "Q")) { Quit(); }
-      ImGui::EndMenu();
-    }
-    ImGui::EndMainMenuBar();
-  }
+  menu_->Update();
 
   // panic popup
-  if (ImGui::BeginPopupModal(kPanicPopupId, nullptr, kPanicPopupFlags)) {
-    const auto window = ImGui::GetWindowSize();
-    const auto region = ImGui::GetContentRegionAvail();
-
-    const auto icon = ImGui::CalcTextSize(ICON_FA_SKULL_CROSSBONES);
-    ImGui::SetCursorPosX((window.x - icon.x)/2);
-    ImGui::Text(ICON_FA_SKULL_CROSSBONES);
-
-    ImGui::Text("%s", panic_.c_str());
-
-    const auto size = ImVec2(region.x, 0);
-    if (ImGui::Button("ABORT", size)) {
-      alive_ = false;
-    }
-    ImGui::SetItemDefaultFocus();
-    ImGui::EndPopup();
-    return;
+  panic_->Update();
+  if (panic_->aborted()) {
+    alive_ = false;
   }
-
-  // opens panic popup
-  if (panic_.size()) {
-    ImGui::OpenPopup(kPanicPopupId);
-    return;
-  }
+  if (panic_->opened()) return;
 
   // close window
   if (glfwWindowShouldClose(window_)) {

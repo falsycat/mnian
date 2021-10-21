@@ -80,7 +80,7 @@ int main(int, char**) {
     {
       ZoneScopedN("build font");
       {  // M+ code
-        static constexpr float kSize = 16.f;
+        static constexpr float kSize = 17.f;
 
         ImFontConfig config;
         config.FontDataOwnedByAtlas = false;
@@ -92,7 +92,7 @@ int main(int, char**) {
             kSize, &config, io.Fonts->GetGlyphRangesJapanese());
       }
       {  // FontAwesome
-        static constexpr float kSize = 18.f;
+        static constexpr float kSize = 16.f;
 
         static const ImWchar range[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
 

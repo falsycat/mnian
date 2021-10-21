@@ -6,6 +6,10 @@ target_sources(mnian
   PRIVATE
     app.cc
     app.h
+    app_lang.cc
+    app_menu.h
+    app_panic_popup.h
+    app_project.h
     dir.h
     file.cc
     file.h

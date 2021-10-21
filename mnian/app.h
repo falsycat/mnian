@@ -6,6 +6,7 @@
 #include <imgui.h>
 
 #include <cassert>
+#include <memory>
 #include <string>
 
 #include "mncore/app.h"
@@ -28,6 +29,7 @@ class App : public core::iApp {
 
   App() = delete;
   App(GLFWwindow* window, const core::DeserializerRegistry* reg);
+  ~App();
 
   App(const App&) = delete;
   App(App&&) = delete;
@@ -52,16 +54,21 @@ class App : public core::iApp {
   }
 
  private:
-  static App* instance_;
+  class Menu;
+  class PanicPopup;
+
+
+  void BuildDefaultLang();
 
 
   bool Deserialize(core::iDeserializer* des);
   void Serialize(core::iSerializer* serial);
 
 
-  bool alive_ = true;
+  static App* instance_;
 
-  std::string panic_;
+
+  bool alive_ = true;
 
 
   GLFWwindow* window_;
@@ -73,6 +80,10 @@ class App : public core::iApp {
   FileStore fstore_;
 
   CpuWorker cpu_worker_;
+
+
+  std::unique_ptr<Menu>       menu_;
+  std::unique_ptr<PanicPopup> panic_;
 };
 
 }  // namespace mnian
