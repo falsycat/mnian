@@ -11,6 +11,7 @@ target_sources(mncore
     conv.h
     dir.h
     file.h
+    lang.h
     logger.h
     node.h
     serialize.h
@@ -21,6 +22,7 @@ target_sources(mncore
     command.cc
     dir.cc
     history.cc
+    lang.cc
     node.cc
     serialize.cc
     serialize_json.cc

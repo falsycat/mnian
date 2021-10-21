@@ -23,6 +23,7 @@ target_sources(mntest
     file.h
     history.cc
     history.h
+    lang.cc
     logger.cc
     logger.h
     node.cc
