@@ -10,6 +10,7 @@
 #include "mncore/dir.h"
 #include "mncore/file.h"
 #include "mncore/history.h"
+#include "mncore/lang.h"
 #include "mncore/logger.h"
 #include "mncore/serialize.h"
 #include "mncore/task.h"
@@ -109,6 +110,10 @@ class iApp {
     return project_;
   }
 
+  Lang& lang() {
+    return lang_;
+  }
+
   TaskQueue& mainQ() {
     return main_;
   }
@@ -129,6 +134,8 @@ class iApp {
   iFileStore* fstore_;
 
   Project project_;
+
+  Lang lang_;
 
   TaskQueue main_, cpu_, gl3_;
 };
