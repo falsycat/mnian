@@ -15,33 +15,14 @@
 
 #include "mnres/all.h"
 
+#include "mnian/app_project.h"
+
 
 namespace mnian {
 
 static constexpr size_t kCpuWorkerCount = 4;
 
 static constexpr const char* kFileName = "mnian.json";
-
-static constexpr const char* kInitialProject = R"({
-  "project": {
-    "root": {
-      "type" : "mnian::core::Dir",
-      "param": {},
-    },
-    "nstore": [],
-    "wstore": [
-      {
-        "id": 0,
-        "entity": {
-          "type" : "ProjectView",
-          "param": {}
-        },
-      },
-    ],
-    "history": {
-    },
-  },
-})";
 
 
 static constexpr const char* kPanicPopupId = "PANIC##mnian/app";
@@ -68,6 +49,7 @@ App::App(GLFWwindow* window, const core::DeserializerRegistry* reg) :
   }
 
   // load project
+  LoadInitialProject();
   if (std::filesystem::exists(kFileName)) {
     ZoneScopedN("load existing project");
 
@@ -88,17 +70,6 @@ App::App(GLFWwindow* window, const core::DeserializerRegistry* reg) :
     if (!Deserialize(des.get())) {
       Panic(_("failed to load existing project"));
       return;
-    }
-  } else {
-    ZoneScopedN("load initial project");
-    std::stringstream st(kInitialProject);
-
-    auto des =
-        core::iDeserializer::CreateJson(this, &logger(), &registry(), &st);
-    assert(des);
-
-    if (!Deserialize(des.get())) {
-      assert(false);
     }
   }
 }

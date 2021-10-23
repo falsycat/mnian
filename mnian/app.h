@@ -63,6 +63,8 @@ class App : public core::iApp {
   bool Deserialize(core::iDeserializer* des);
   void Serialize(core::iSerializer* serial);
 
+  void LoadInitialProject();
+
 
   bool alive_ = true;
 
@@ -86,6 +88,9 @@ class App : public core::iApp {
 // gettext() shorthand
 static inline const char* _(const char* id) {
   return App::instance().lang().GetText(id);
+}
+static inline const char* _r(const char* id) {
+  return id;
 }
 
 }  // namespace mnian

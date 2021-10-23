@@ -8,7 +8,8 @@
 
 #include "mncore/dir.h"
 
-#include "mnian/widget_project_view.h"
+#include "mnian/command.h"
+#include "mnian/widget_dir_tree.h"
 
 
 namespace mnian {
@@ -16,12 +17,16 @@ namespace mnian {
 void SetupDeserializerRegistry(core::DeserializerRegistry* reg) {
   ZoneScoped;
 
-  // TODO(falsycat): replace with Deserialize method
+  // null objects
+  reg->RegisterType<core::iCommand, NullCommand>();
+
+  // iDirItem
   reg->RegisterType<core::iDirItem, core::Dir>();
   reg->RegisterType<core::iDirItem, core::FileRef>();
   reg->RegisterType<core::iDirItem, core::NodeRef>();
 
-  reg->RegisterType<core::iWidget, ProjectViewWidget>();
+  // iWidget
+  DirTreeWidget::Register(reg);
 }
 
 }  // namespace mnian
