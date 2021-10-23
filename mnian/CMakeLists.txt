@@ -9,6 +9,8 @@ target_sources(mnian
     dir.h
     file.cc
     file.h
+    lang.cc
+    lang.h
     logger.h
     main.cc
     registry.h
@@ -27,6 +29,7 @@ target_link_libraries(mnian
     glew
     glfw
     imgui
+    libmulan
     tracy
 
     $<$<PLATFORM_ID:Linux,Darwin>:pthread>

@@ -13,6 +13,8 @@
 
 #include "mncore/serialize.h"
 
+#include "mnres/all.h"
+
 
 namespace mnian {
 
@@ -56,13 +58,23 @@ App::App(GLFWwindow* window, const core::DeserializerRegistry* reg) :
     window_(window), cpu_worker_(&cpuQ(), kCpuWorkerCount) {
   instance_ = this;
 
+  // load default language
+  {
+    std::stringstream st;
+    st.write(
+        reinterpret_cast<const char*>(mnian::res::lang::kEnglish),
+        static_cast<std::streamsize>(mnian::res::lang::kEnglishSize));
+    lang_.Merge(&st, &logger_);
+  }
+
+  // load project
   if (std::filesystem::exists(kFileName)) {
     ZoneScopedN("load existing project");
 
     std::ifstream file(kFileName);
     if (!file) {
       TracyMessageLCS("failed to open file to read", tracy::Color::Red, true);
-      Panic("failed to open file");
+      Panic(_("failed to open file"));
       return;
     }
 
@@ -70,11 +82,11 @@ App::App(GLFWwindow* window, const core::DeserializerRegistry* reg) :
         core::iDeserializer::CreateJson(this, &logger(), &registry(), &file);
     if (!des) {
       TracyMessageLCS("invalid JSON", tracy::Color::Red, true);
-      Panic("failed to parse JSON");
+      Panic(_("failed to parse JSON"));
       return;
     }
     if (!Deserialize(des.get())) {
-      Panic("failed to load existing project");
+      Panic(_("failed to load existing project"));
       return;
     }
   } else {
@@ -119,9 +131,9 @@ void App::Update() {
 
   // app menu
   if (ImGui::BeginMainMenuBar()) {
-    if (ImGui::BeginMenu("App")) {
-      if (ImGui::MenuItem("Save", "S")) { Save(); }
-      if (ImGui::MenuItem("Quit", "Q")) { Quit(); }
+    if (ImGui::BeginMenu(_("App"))) {
+      if (ImGui::MenuItem(_("Save"))) { Save(); }
+      if (ImGui::MenuItem(_("Quit"))) { Quit(); }
       ImGui::EndMenu();
     }
     ImGui::EndMainMenuBar();
@@ -139,7 +151,7 @@ void App::Update() {
     ImGui::Text("%s", panic_.c_str());
 
     const auto size = ImVec2(region.x, 0);
-    if (ImGui::Button("ABORT", size)) {
+    if (ImGui::Button(_("ABORT"), size)) {
       alive_ = false;
     }
     ImGui::SetItemDefaultFocus();

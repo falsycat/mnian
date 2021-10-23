@@ -13,6 +13,7 @@
 #include "mncore/serialize.h"
 
 #include "mnian/file.h"
+#include "mnian/lang.h"
 #include "mnian/logger.h"
 #include "mnian/worker.h"
 
@@ -51,6 +52,10 @@ class App : public core::iApp {
     return alive_;
   }
 
+  Lang& lang() {
+    return lang_;
+  }
+
  private:
   static App* instance_;
 
@@ -64,6 +69,8 @@ class App : public core::iApp {
   std::string panic_;
 
 
+  Lang lang_;
+
   GLFWwindow* window_;
 
   core::RealClock clock_;
@@ -74,5 +81,11 @@ class App : public core::iApp {
 
   CpuWorker cpu_worker_;
 };
+
+
+// gettext() shorthand
+static inline const char* _(const char* id) {
+  return App::instance().lang().GetText(id);
+}
 
 }  // namespace mnian
