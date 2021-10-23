@@ -108,6 +108,17 @@ target_link_libraries(imgui
 )
 
 
+# ---- MULAN ----
+# repository: https://github.com/falsycat/mulan
+# license   : WTFPLv2
+
+FetchContent_Declare(
+  mulan
+  URL "https://github.com/falsycat/mulan/archive/refs/tags/v1.1.0.zip"
+)
+FetchContent_MakeAvailable(mulan)
+
+
 # ---- RapidJSON ----
 # repository: https://github.com/Tencent/rapidjson
 # license   : MIT

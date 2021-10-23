@@ -1,0 +1,27 @@
+#: ../mnian/app.cc:77
+msgid "failed to open file"
+msgstr ""
+
+#: ../mnian/app.cc:85
+msgid "failed to parse JSON"
+msgstr ""
+
+#: ../mnian/app.cc:89
+msgid "failed to load existing project"
+msgstr ""
+
+#: ../mnian/app.cc:134
+msgid "App"
+msgstr ":fa5_stream: App"
+
+#: ../mnian/app.cc:135
+msgid "Save"
+msgstr ":fa5_save: Save"
+
+#: ../mnian/app.cc:136
+msgid "Quit"
+msgstr ":fa5_times_circle: Quit"
+
+#: ../mnian/app.cc:154
+msgid "ABORT"
+msgstr "ABORT"
