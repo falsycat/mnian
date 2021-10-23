@@ -1,27 +1,164 @@
-#: ../mnian/app.cc:77
+#: ../mnian/app.cc:59
 msgid "failed to open file"
 msgstr ""
 
-#: ../mnian/app.cc:85
+#: ../mnian/app.cc:67
 msgid "failed to parse JSON"
 msgstr ""
 
-#: ../mnian/app.cc:89
+#: ../mnian/app.cc:71
 msgid "failed to load existing project"
 msgstr ""
 
-#: ../mnian/app.cc:134
+#: ../mnian/app.cc:105
 msgid "App"
 msgstr ":fa5_stream: App"
 
-#: ../mnian/app.cc:135
+#: ../mnian/app.cc:106
 msgid "Save"
 msgstr ":fa5_save: Save"
 
-#: ../mnian/app.cc:136
+#: ../mnian/app.cc:107
 msgid "Quit"
 msgstr ":fa5_times_circle: Quit"
 
-#: ../mnian/app.cc:154
+#: ../mnian/app.cc:125
 msgid "ABORT"
 msgstr "ABORT"
+
+#: ../mnian/popup_input.cc:47
+#, c-format
+msgid "invalid: %s"
+msgstr ":fa5_times_circle: %s"
+
+#: ../mnian/popup_input.cc:49
+msgid "valid"
+msgstr ":fa5_check_circle: good"
+
+#: ../mnian/popup_input.cc:53
+msgid "OK"
+msgstr ""
+
+#: ../mnian/widget_dir_tree.cc:82
+msgid "Enter new name: "
+msgstr ":fa5_edit: Enter new name: "
+
+#: ../mnian/widget_dir_tree.cc:105
+msgid "[ROOT]"
+msgstr ":fa5_chess_king: ROOT"
+
+#: ../mnian/widget_dir_tree.cc:123
+#, fuzzy, c-format
+msgid "[D] %s"
+msgstr ":fa5_folder: %s"
+
+#: ../mnian/widget_dir_tree.cc:128
+#, c-format
+msgid ""
+"path: %s\n"
+"type: directory\n"
+"size: %zu"
+msgstr ""
+
+#: ../mnian/widget_dir_tree.cc:162
+#, c-format
+msgid "[N] %s"
+msgstr ":fa5_puzzle_piece: %s"
+
+#: ../mnian/widget_dir_tree.cc:166
+msgid "type: node"
+msgstr ""
+
+#: ../mnian/widget_dir_tree.cc:183
+#, c-format
+msgid "[F] %s"
+msgstr ":fa5_file: %s"
+
+#: ../mnian/widget_dir_tree.cc:187
+msgid "type: file"
+msgstr ""
+
+#: ../mnian/widget_dir_tree.cc:305
+#, c-format
+msgid "DirItem (%s)"
+msgstr ""
+
+#: ../mnian/widget_dir_tree.cc:331
+msgid "isn't your parent you?"
+msgstr ""
+
+#: ../mnian/widget_dir_tree.cc:333
+msgid "changes nothing"
+msgstr ""
+
+#: ../mnian/widget_dir_tree.cc:335
+msgid "name duplication"
+msgstr ""
+
+#: ../mnian/widget_dir_tree.cc:337
+msgid "move to here?"
+msgstr ""
+
+#: ../mnian/widget_dir_tree.cc:346
+msgid "Insert"
+msgstr ":fa5_greater_than: Insert"
+
+#: ../mnian/widget_dir_tree.cc:352
+msgid "Add"
+msgstr ":fa5_plus: Add"
+
+#: ../mnian/widget_dir_tree.cc:358
+msgid "new directory"
+msgstr ":fa5_folder: new directory"
+
+#: ../mnian/widget_dir_tree.cc:362
+msgid "new node"
+msgstr ":fa5_puzzle_piece: new node"
+
+#: ../mnian/widget_dir_tree.cc:365
+msgid "new file"
+msgstr ":fa5_file: new file"
+
+#: ../mnian/widget_dir_tree.cc:366
+msgid "from existing native file"
+msgstr ":fa5_external_link_alt: from existing native file"
+
+#: ../mnian/widget_dir_tree.cc:369
+msgid "from new native file"
+msgstr ":fa5_plus_square: from new native file"
+
+#: ../mnian/widget_dir_tree.cc:372
+msgid "from URL"
+msgstr ":fa5_link: from URL"
+
+#: ../mnian/widget_dir_tree.cc:379
+msgid "Rename"
+msgstr ":fa5_edit: Rename"
+
+#: ../mnian/widget_dir_tree.cc:382
+msgid "Clone"
+msgstr ":fa5_clone: Clone"
+
+#: ../mnian/widget_dir_tree.cc:385
+msgid "Remove"
+msgstr ":fa5_minus: Remove"
+
+#: ../mnian/widget_dir_tree.cc:393
+msgid "Remove selected items"
+msgstr ":fa5_minus_square: Remove selected items"
+
+#: ../mnian/widget_dir_tree.cc:400
+msgid "Deselect"
+msgstr "   Deselect"
+
+#: ../mnian/widget_dir_tree.cc:405
+msgid "Select"
+msgstr ":fa5_square: Select"
+
+#: ../mnian/widget_dir_tree.cc:411
+msgid "Deselect all"
+msgstr "   Deselect all"
+
+#: ../mnian/widget_dir_tree.cc:416
+msgid "Select all siblings"
+msgstr "   Select all siblings"
