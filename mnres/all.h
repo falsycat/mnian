@@ -14,4 +14,9 @@ namespace font {
   extern const size_t  kMplusCodeSize;
 }  // namespace font
 
+namespace lang {
+  extern const uint8_t kEnglish[];
+  extern const size_t  kEnglishSize;
+}  // namespace lang
+
 }  // namespace mnian::res
