@@ -181,6 +181,69 @@ TEST(Dir, FindIndexOf) {
   }
 }
 
+TEST(Dir, GeneratePath) {
+  static const std::vector<std::string> kNames = {"a", "b", "c", "d"};
+
+  core::Dir root(core::iActionable::ActionList {});
+
+  std::vector<core::Dir*> dirs = {&root};
+  for (auto& name : kNames) {
+    auto dir = std::make_unique<core::Dir>(core::iActionable::ActionList {});
+    ASSERT_TRUE(dir);
+
+    dir->Rename(name);
+    dirs.push_back(dir.get());
+
+    dirs[dirs.size()-2]->Add(std::move(dir));
+  }
+
+  ASSERT_THAT(dirs[0]->GeneratePath(), ::testing::ElementsAre());
+  ASSERT_THAT(dirs[1]->GeneratePath(), ::testing::ElementsAre("a"));
+  ASSERT_THAT(dirs[2]->GeneratePath(), ::testing::ElementsAre("a", "b"));
+  ASSERT_THAT(dirs[3]->GeneratePath(), ::testing::ElementsAre("a", "b", "c"));
+  ASSERT_THAT(dirs[4]->GeneratePath(),
+              ::testing::ElementsAre("a", "b", "c", "d"));
+}
+
+TEST(Dir, FindPath) {
+  static const std::vector<std::string> kNames = {"a", "b", "c", "d"};
+
+  core::Dir root(core::iActionable::ActionList {});
+
+  std::vector<core::Dir*> dirs = {&root};
+  for (auto& name : kNames) {
+    auto dir = std::make_unique<core::Dir>(core::iActionable::ActionList {});
+    ASSERT_TRUE(dir);
+
+    dir->Rename(name);
+    dirs.push_back(dir.get());
+
+    dirs[dirs.size()-2]->Add(std::move(dir));
+  }
+
+  ASSERT_EQ(root.FindPath({}),                   dirs[0]);
+  ASSERT_EQ(root.FindPath({"a"}),                dirs[1]);
+  ASSERT_EQ(root.FindPath({"a", "b"}),           dirs[2]);
+  ASSERT_EQ(root.FindPath({"a", "b", "c"}),      dirs[3]);
+  ASSERT_EQ(root.FindPath({"a", "b", "c", "d"}), dirs[4]);
+
+  ASSERT_EQ(dirs[1]->FindPath({}),              dirs[1]);
+  ASSERT_EQ(dirs[1]->FindPath({"b"}),           dirs[2]);
+  ASSERT_EQ(dirs[1]->FindPath({"b", "c"}),      dirs[3]);
+  ASSERT_EQ(dirs[1]->FindPath({"b", "c", "d"}), dirs[4]);
+
+  ASSERT_EQ(dirs[2]->FindPath({}),         dirs[2]);
+  ASSERT_EQ(dirs[2]->FindPath({"c"}),      dirs[3]);
+  ASSERT_EQ(dirs[2]->FindPath({"c", "d"}), dirs[4]);
+
+  ASSERT_EQ(dirs[3]->FindPath({}),    dirs[3]);
+  ASSERT_EQ(dirs[3]->FindPath({"d"}), dirs[4]);
+
+  ASSERT_EQ(dirs[4]->FindPath({}), dirs[4]);
+
+  ASSERT_FALSE(root.FindPath({"missing", "path"}));
+}
+
 
 TEST(FileRef, ParseFlags) {
   ASSERT_EQ(core::FileRef::ParseFlags("rrww"),

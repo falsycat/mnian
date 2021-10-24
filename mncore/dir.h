@@ -130,6 +130,8 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
     }
   }
 
+  std::vector<std::string> GeneratePath() const;
+
 
   virtual void Visit(iDirItemVisitor* visitor) = 0;
 
@@ -248,6 +250,20 @@ class Dir : public iDirItem {
       return std::nullopt;
     }
     return itr-items_.begin();
+  }
+
+  iDirItem* FindPath(const std::vector<std::string>& path) {
+    iDirItem* ret = this;
+    for (auto& term : path) {
+      const auto prev = dynamic_cast<Dir*>(ret);
+      if (!prev) return nullptr;
+
+      const auto index = prev->FindIndexOf(term);
+      if (!index) return nullptr;
+
+      ret = &prev->items(*index);
+    }
+    return ret;
   }
 
 

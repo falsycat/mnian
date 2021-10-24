@@ -18,6 +18,21 @@ std::optional<std::string> iDirItem::ValidateName(const std::string& name) {
   return std::nullopt;
 }
 
+std::vector<std::string> iDirItem::GeneratePath() const {
+  if (isRoot()) return {};
+
+  std::vector<std::string> ret = {name_};
+
+  Dir* itr = parent_;
+  while (!itr->isRoot()) {
+    ret.push_back(itr->name_);
+    itr = itr->parent_;
+  }
+
+  std::reverse(ret.begin(), ret.end());
+  return ret;
+}
+
 
 Dir::ItemList Dir::DeserializeParam(iDeserializer* des) {
   const auto size = des->size();
