@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -46,8 +47,6 @@ class iDirItemVisitor {
 
 // An observer interface for iDirItem, whose constructor registers to the
 // target, and destructor unregisters if the target is still alive.
-// When ObserveRemove() is called, some methods get unavailable, and this
-// object should be destructed as soon as possible.
 class iDirItemObserver {
  public:
   friend class iDirItem;
@@ -64,11 +63,23 @@ class iDirItemObserver {
   iDirItemObserver& operator=(iDirItemObserver&&) = delete;
 
 
+  // Be called when contents of the item is updated.
   virtual void ObserveUpdate() {
   }
+
+  // Be called when the item is added to directory tree.
+  virtual void ObserveAdd() {
+  }
+  // Be called when the item is moved to other directory or renamed.
   virtual void ObserveMove() {
   }
+  // Be called when the item is removed from directory tree to History.
+  // When recovers from the History, ObserveAdd is called.
   virtual void ObserveRemove() {
+  }
+  // Be called when the item is deleted from memory. The item is completely
+  // deleted and not recoverable anymore.
+  virtual void ObserveDelete() {
   }
 
 
@@ -85,8 +96,8 @@ class iDirItemObserver {
 // An interface of DirItem, which composes Dir.
 class iDirItem : public iActionable, public iPolymorphicSerializable {
  public:
-  friend class Dir;
   friend class iDirItemObserver;
+  friend class Dir;
 
 
   // Returns a reason on failure, or std::nullopt on success.
@@ -100,9 +111,9 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
   }
   ~iDirItem() override {
     for (auto observer : observers_) {
+      observer->ObserveDelete();
       observer->target_ = nullptr;
     }
-    observers_.clear();
   }
 
   iDirItem(const iDirItem&) = delete;
@@ -112,28 +123,16 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
   iDirItem& operator=(iDirItem&&) = delete;
 
 
-  // Returns if the rename is done successfully.
-  // Validation and  duplication check with siblings must be done in advance.
-  void Rename(const std::string& name) {
-    assert(!ValidateName(name));
-    if (name == name_) return;
+  virtual void Visit(iDirItemVisitor* visitor) = 0;
 
-    name_ = name;
-    for (auto& observer : observers_) {
-      observer->ObserveMove();
-    }
-  }
 
-  void Touch() const {
+  std::vector<std::string> GeneratePath() const;
+
+  void NotifyUpdate() const {
     for (auto& observer : observers_) {
       observer->ObserveUpdate();
     }
   }
-
-  std::vector<std::string> GeneratePath() const;
-
-
-  virtual void Visit(iDirItemVisitor* visitor) = 0;
 
 
   bool isRoot() const {
@@ -147,10 +146,27 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
     return name_;
   }
 
+ protected:
+  void NotifyAdd() {
+    for (auto& observer : observers_) {
+      observer->ObserveAdd();
+    }
+  }
+  void NotifyMove() {
+    for (auto& observer : observers_) {
+      observer->ObserveMove();
+    }
+  }
+  void NotifyRemove() {
+    for (auto& observer : observers_) {
+      observer->ObserveMove();
+    }
+  }
+
  private:
   Dir* parent_ = nullptr;
 
-  std::string name_ = "";
+  std::string name_;
 
   std::vector<iDirItemObserver*> observers_;
 };
@@ -159,19 +175,23 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
 // Dir is a DirItem which owns child DirItems.
 class Dir : public iDirItem {
  public:
-  using ItemList = std::vector<std::unique_ptr<iDirItem>>;
+  using ItemMap = std::map<std::string, std::unique_ptr<iDirItem>>;
 
-  static ItemList DeserializeParam(iDeserializer*);
+  static ItemMap DeserializeParam(iDeserializer*);
 
 
   Dir() = delete;
-  explicit Dir(
-      ActionList&& actions, const char* type = "Dir", ItemList&& items = {}) :
+  explicit Dir(ActionList&& actions,
+               const char*  type  = "Dir",
+               ItemMap&&    items = {}) :
       iDirItem(std::move(actions), type), items_(std::move(items)) {
-    for (auto& item : items_) AttachSelf(item.get());
-  }
-  ~Dir() {
-    while (items_.size()) RemoveByIndex(0);
+    for (auto& item : items_) {
+      const auto& name = item.first;
+      auto        ptr  = item.second.get();
+      ptr->name_   = name;
+      ptr->parent_ = this;
+      ptr->NotifyAdd();
+    }
   }
 
   Dir(const Dir&) = delete;
@@ -181,121 +201,91 @@ class Dir : public iDirItem {
   Dir& operator=(Dir&&) = delete;
 
 
-  void Visit(iDirItemVisitor* visitor) override {
+  void Visit(iDirItemVisitor* visitor) final {
     assert(visitor);
     visitor->VisitDir(this);
   }
 
 
   // Name duplication check must be done in advance.
-  iDirItem* Add(std::unique_ptr<iDirItem>&& item) {
-    assert(item);
+  iDirItem* Add(const std::string& name, std::unique_ptr<iDirItem>&& item) {
+    assert(!items_.contains(name));
+    assert(!ValidateName(name));
 
-    iDirItem* ptr = item.get();
-    AttachSelf(ptr);
+    item->name_   = name;
+    item->parent_ = this;
 
-    items_.push_back(std::move(item));
+    auto ret = item.get();
+    items_[name] = std::move(item);
+    ret->NotifyAdd();
+    NotifyUpdate();
+    return ret;
+  }
 
-    Touch();
+  std::unique_ptr<iDirItem> Remove(const std::string& name) {
+    auto itr = items_.find(name);
+    if (itr == items_.end()) return nullptr;
+
+    auto ret = std::move(itr->second);
+    items_.erase(itr);
+    ret->NotifyRemove();
+    NotifyUpdate();
+    return ret;
+  }
+
+  iDirItem* Move(const std::string& name, Dir* dst, const std::string& dname) {
+    assert(dst);
+    assert(!dst->items_.contains(dname));
+    assert(!ValidateName(dname));
+
+    auto itr = items_.find(name);
+    if (itr == items_.end()) return nullptr;
+
+    auto item = std::move(itr->second);
+    items_.erase(itr);
+
+    auto ptr = item.get();
+    item->name_   = dname;
+    item->parent_ = dst;
+    dst->items_[dname] = std::move(item);
+
+    ptr->NotifyMove();
+    dst->NotifyUpdate();
+    NotifyUpdate();
     return ptr;
   }
 
-  std::unique_ptr<iDirItem> RemoveByIndex(size_t index) {
-    auto item = RemoveQuietly(index);
-    for (auto observer : item->observers_) {
-      observer->ObserveRemove();
-    }
-    Touch();
-    return item;
-  }
-  std::unique_ptr<iDirItem> Remove(const iDirItem* item) {
-    auto index = FindIndexOf(item);
-    assert(index);
-    return RemoveByIndex(*index);
+  iDirItem* Rename(const std::string& src, const std::string& dst) {
+    return Move(src, this, dst);
   }
 
-  void MoveByIndex(size_t from, Dir* dst) {
-    assert(dst);
 
-    auto item = RemoveQuietly(from);
-    Touch();
-
-    iDirItem* ptr = dst->Add(std::move(item));
-    for (auto observer : ptr->observers_) {
-      observer->ObserveMove();
-    }
-    dst->Touch();
-  }
-  void Move(const iDirItem* item, Dir* dst) {
-    auto index = FindIndexOf(item);
-    assert(index);
-    MoveByIndex(*index, dst);
+  iDirItem* Find(const std::string& name) const {
+    auto itr = items_.find(name);
+    if (itr == items_.end()) return nullptr;
+    return itr->second.get();
   }
 
-  std::optional<size_t> FindIndexOf(const std::string& name) const {
-    auto itr = std::find_if(
-        items_.begin(), items_.end(),
-        [&](auto& x) { return x->name() == name; });
-    if (itr == items_.end()) {
-      return std::nullopt;
-    }
-    return itr-items_.begin();
-  }
-  std::optional<size_t> FindIndexOf(const iDirItem* item) const {
-    assert(item);
-    auto itr = std::find_if(
-        items_.begin(), items_.end(),
-        [&](auto& x) { return x.get() == item; });
-    if (itr == items_.end()) {
-      return std::nullopt;
-    }
-    return itr-items_.begin();
-  }
-
-  iDirItem* FindPath(const std::vector<std::string>& path) {
-    iDirItem* ret = this;
+  iDirItem* FindPath(const std::vector<std::string>& path) const {
+    iDirItem* ret = const_cast<iDirItem*>(static_cast<const iDirItem*>(this));
     for (auto& term : path) {
       const auto prev = dynamic_cast<Dir*>(ret);
       if (!prev) return nullptr;
-
-      const auto index = prev->FindIndexOf(term);
-      if (!index) return nullptr;
-
-      ret = &prev->items(*index);
+      ret = prev->Find(term);
     }
     return ret;
   }
 
 
-  iDirItem& items(size_t index) const {
-    return *items_[index];
-  }
-  size_t size() const {
-    return items_.size();
+  const ItemMap& items() const {
+    return items_;
   }
 
  protected:
   void SerializeParam(iSerializer* serializer) const override;
 
  private:
-  void AttachSelf(iDirItem* item) {
-    assert(!item->parent_);
-    item->parent_ = this;
-  }
-
-  std::unique_ptr<iDirItem> RemoveQuietly(size_t index) {
-    assert(index < items_.size());
-
-    auto target = std::move(items_[index]);
-    assert(target);
-    target->parent_ = nullptr;
-
-    items_.erase(items_.begin() + static_cast<int64_t>(index));
-    return target;
-  }
-
-
-  ItemList items_;
+  ItemMap items_;
 };
 
 
@@ -330,7 +320,7 @@ class FileRef : public iDirItem {
   FileRef& operator=(FileRef&&) = delete;
 
 
-  void Visit(iDirItemVisitor* visitor) override {
+  void Visit(iDirItemVisitor* visitor) final {
     visitor->VisitFile(this);
   }
 
@@ -340,20 +330,20 @@ class FileRef : public iDirItem {
     if (file == file_) return;
 
     file_ = file;
-    Touch();
+    NotifyUpdate();
   }
 
   void SetFlag(Flag flag) {
     if (flags_ & flag) return;
 
     flags_ |= flag;
-    Touch();
+    NotifyUpdate();
   }
   void UnsetFlag(Flag flag) {
     if (!(flags_ & flag)) return;
 
     flags_ = static_cast<Flags>(flags_ & ~flag);
-    Touch();
+    NotifyUpdate();
   }
 
 
@@ -380,7 +370,7 @@ class FileRef : public iDirItem {
     }
 
     void ObserveUpdate() override {
-      owner_->Touch();
+      owner_->NotifyUpdate();
     }
 
    private:
@@ -425,7 +415,7 @@ class NodeRef : public iDirItem {
   NodeRef& operator=(NodeRef&&) = delete;
 
 
-  void Visit(iDirItemVisitor* visitor) override {
+  void Visit(iDirItemVisitor* visitor) final {
     visitor->VisitNode(this);
   }
 
@@ -445,7 +435,7 @@ class NodeRef : public iDirItem {
     }
 
     void ObserveUpdate() override {
-      owner_->Touch();
+      owner_->NotifyUpdate();
     }
 
    private:
