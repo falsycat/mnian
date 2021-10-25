@@ -29,20 +29,6 @@ TEST(iDirItem, ValidateName) {
   ASSERT_TRUE(core::iDirItem::ValidateName("にゃんにゃん"));
 }
 
-TEST(iDirItem, Rename) {
-  MockDirItem item;
-  item.Rename("helloworld");
-  ASSERT_EQ(item.name(), "helloworld");
-}
-
-TEST(iDirItem, Touch) {
-  MockDirItem item;
-
-  ::testing::StrictMock<MockDirItemObserver> observer(&item);
-  EXPECT_CALL(observer, ObserveUpdate());
-  item.Touch();
-}
-
 
 TEST(Dir, Visit) {
   core::Dir dir(core::iActionable::ActionList {});
@@ -68,12 +54,12 @@ TEST(Dir, Add) {
     auto ptr = subdir.get();
     subdirs.push_back(ptr);
 
-    ASSERT_EQ(dir.Add(std::move(subdir)), ptr);
-    ASSERT_EQ(dir.size(), i+1);
+    ASSERT_EQ(dir.Add(std::to_string(i), std::move(subdir)), ptr);
+    ASSERT_EQ(dir.items().size(), i+1);
   }
 
   for (size_t i = 0; i < kCount; ++i) {
-    ASSERT_EQ(&dir.items(i), subdirs[i]);
+    ASSERT_EQ(dir.Find(std::to_string(i)), subdirs[i]);
   }
 }
 
@@ -93,21 +79,27 @@ TEST(Dir, Remove) {
     auto subdir = std::make_unique<core::Dir>(core::iActionable::ActionList {});
     ASSERT_TRUE(subdir);
     subdirs.push_back(subdir.get());
-    dir.Add(std::move(subdir));
+    dir.Add(std::to_string(i), std::move(subdir));
   }
-  ASSERT_EQ(dir.size(), kCount);
+  ASSERT_EQ(dir.items().size(), kCount);
+
+  std::vector<size_t> index;
+  for (size_t i = 0; i < kCount; ++i) index.push_back(i);
+  std::shuffle(index.begin(), index.end(), rnd);
 
   for (size_t i = 0; i < kCount; ++i) {
-    const size_t index = rnd()%(kCount-i);
+    auto ptr = subdirs[index[i]];
+    subdirs[index[i]] = nullptr;
 
-    auto ptr = subdirs[index];
-    subdirs.erase(subdirs.begin() + static_cast<intmax_t>(index));
+    ASSERT_EQ(dir.Remove(std::to_string(index[i])).get(), ptr);
+    ASSERT_EQ(dir.items().size(), kCount-i-1);
 
-    ASSERT_EQ(dir.RemoveByIndex(index).get(), ptr);
-    ASSERT_EQ(dir.size(), kCount-i-1);
-
-    for (size_t j = 0; j < kCount-i-1; ++j) {
-      ASSERT_EQ(&dir.items(j), subdirs[j]);
+    for (size_t j = 0; j < kCount; ++j) {
+      if (subdirs[j]) {
+        ASSERT_EQ(dir.Find(std::to_string(j)), subdirs[j]);
+      } else {
+        ASSERT_FALSE(dir.items().contains(std::to_string(j)));
+      }
     }
   }
 }
@@ -124,7 +116,7 @@ TEST(Dir, Move) {
 
   core::Dir dst(core::iActionable::ActionList {});
   ::testing::StrictMock<MockDirItemObserver> dst_observer(&dst);
-  EXPECT_CALL(dst_observer, ObserveUpdate()).Times(kCount*2);
+  EXPECT_CALL(dst_observer, ObserveUpdate()).Times(kCount);
 
   std::vector<std::unique_ptr<::testing::StrictMock<MockDirItemObserver>>>
       sub_observers;
@@ -135,26 +127,30 @@ TEST(Dir, Move) {
 
     auto sub_observer = std::make_unique
         <::testing::StrictMock<MockDirItemObserver>>(subdir.get());
-    EXPECT_CALL(*sub_observer, ObserveMove());
-    sub_observers.push_back(std::move(sub_observer));
 
-    src.Add(std::move(subdir));
+    ::testing::InSequence _;
+    EXPECT_CALL(*sub_observer, ObserveAdd());
+    EXPECT_CALL(*sub_observer, ObserveMove());
+
+    sub_observers.push_back(std::move(sub_observer));
+    src.Add(std::to_string(i), std::move(subdir));
   }
+
+  std::vector<size_t> index;
+  for (size_t i = 0; i < kCount; ++i) index.push_back(i);
+  std::shuffle(index.begin(), index.end(), rnd);
 
   std::vector<core::iDirItem*> subdirs;
   for (size_t i = 0; i < kCount; ++i) {
-    const size_t index = rnd()%(kCount-i);
-
-    auto ptr = &src.items(index);
-    subdirs.push_back(ptr);
-    src.Move(ptr, &dst);
+    subdirs.push_back(
+        src.Move(std::to_string(index[i]), &dst, std::to_string(i)));
   }
   for (size_t i = 0; i < kCount; ++i) {
-    ASSERT_EQ(&dst.items(i), subdirs[i]);
+    ASSERT_EQ(dst.Find(std::to_string(i)), subdirs[i]);
   }
 }
 
-TEST(Dir, FindIndexOf) {
+TEST(Dir, Find) {
   static const std::vector<std::string> kNames = {
     "helloworld", "hello", "world", "hellworld",
   };
@@ -165,20 +161,67 @@ TEST(Dir, FindIndexOf) {
   for (auto& name : kNames) {
     auto subdir = std::make_unique<core::Dir>(core::iActionable::ActionList {});
     ASSERT_TRUE(subdir);
-    subdir->Rename(name);
     subdirs[name] = subdir.get();
-    dir.Add(std::move(subdir));
+    dir.Add(name, std::move(subdir));
   }
   for (auto& name : kNames) {
-    auto index = dir.FindIndexOf(name);
-    ASSERT_TRUE(index);
-    ASSERT_EQ(&dir.items(*index), subdirs[name]);
+    ASSERT_EQ(dir.Find(name), subdirs[name]);
   }
-  for (auto& pair : subdirs) {
-    auto index = dir.FindIndexOf(pair.second);
-    ASSERT_TRUE(index);
-    ASSERT_EQ(&dir.items(*index), pair.second);
+}
+
+TEST(Dir, GeneratePath) {
+  static const std::vector<std::string> kNames = {"a", "b", "c", "d"};
+
+  core::Dir root(core::iActionable::ActionList {});
+
+  std::vector<core::Dir*> dirs = {&root};
+  for (auto& name : kNames) {
+    auto dir = std::make_unique<core::Dir>(core::iActionable::ActionList {});
+    dirs.push_back(dir.get());
+    dirs[dirs.size()-2]->Add(name, std::move(dir));
   }
+
+  ASSERT_THAT(dirs[0]->GeneratePath(), ::testing::ElementsAre());
+  ASSERT_THAT(dirs[1]->GeneratePath(), ::testing::ElementsAre("a"));
+  ASSERT_THAT(dirs[2]->GeneratePath(), ::testing::ElementsAre("a", "b"));
+  ASSERT_THAT(dirs[3]->GeneratePath(), ::testing::ElementsAre("a", "b", "c"));
+  ASSERT_THAT(dirs[4]->GeneratePath(),
+              ::testing::ElementsAre("a", "b", "c", "d"));
+}
+
+TEST(Dir, FindPath) {
+  static const std::vector<std::string> kNames = {"a", "b", "c", "d"};
+
+  core::Dir root(core::iActionable::ActionList {});
+
+  std::vector<core::Dir*> dirs = {&root};
+  for (auto& name : kNames) {
+    auto dir = std::make_unique<core::Dir>(core::iActionable::ActionList {});
+    dirs.push_back(dir.get());
+    dirs[dirs.size()-2]->Add(name, std::move(dir));
+  }
+
+  ASSERT_EQ(root.FindPath({}),                   dirs[0]);
+  ASSERT_EQ(root.FindPath({"a"}),                dirs[1]);
+  ASSERT_EQ(root.FindPath({"a", "b"}),           dirs[2]);
+  ASSERT_EQ(root.FindPath({"a", "b", "c"}),      dirs[3]);
+  ASSERT_EQ(root.FindPath({"a", "b", "c", "d"}), dirs[4]);
+
+  ASSERT_EQ(dirs[1]->FindPath({}),              dirs[1]);
+  ASSERT_EQ(dirs[1]->FindPath({"b"}),           dirs[2]);
+  ASSERT_EQ(dirs[1]->FindPath({"b", "c"}),      dirs[3]);
+  ASSERT_EQ(dirs[1]->FindPath({"b", "c", "d"}), dirs[4]);
+
+  ASSERT_EQ(dirs[2]->FindPath({}),         dirs[2]);
+  ASSERT_EQ(dirs[2]->FindPath({"c"}),      dirs[3]);
+  ASSERT_EQ(dirs[2]->FindPath({"c", "d"}), dirs[4]);
+
+  ASSERT_EQ(dirs[3]->FindPath({}),    dirs[3]);
+  ASSERT_EQ(dirs[3]->FindPath({"d"}), dirs[4]);
+
+  ASSERT_EQ(dirs[4]->FindPath({}), dirs[4]);
+
+  ASSERT_FALSE(root.FindPath({"missing", "path"}));
 }
 
 
@@ -306,8 +349,10 @@ TEST(iDirItemObserver, LosingTarget) {
 
   ::testing::StrictMock<MockDirItemObserver> observer(fref.get());
 
-  dir->Add(std::move(fref));
-  EXPECT_CALL(observer, ObserveRemove());
+  EXPECT_CALL(observer, ObserveAdd());
+  dir->Add("hoge", std::move(fref));
+
+  EXPECT_CALL(observer, ObserveDelete());
   dir = nullptr;
 }
 

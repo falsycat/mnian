@@ -18,8 +18,23 @@ std::optional<std::string> iDirItem::ValidateName(const std::string& name) {
   return std::nullopt;
 }
 
+std::vector<std::string> iDirItem::GeneratePath() const {
+  if (isRoot()) return {};
 
-Dir::ItemList Dir::DeserializeParam(iDeserializer* des) {
+  std::vector<std::string> ret = {name_};
+
+  Dir* itr = parent_;
+  while (!itr->isRoot()) {
+    ret.push_back(itr->name_);
+    itr = itr->parent_;
+  }
+
+  std::reverse(ret.begin(), ret.end());
+  return ret;
+}
+
+
+Dir::ItemMap Dir::DeserializeParam(iDeserializer* des) {
   const auto size = des->size();
   if (!size) {
     des->logger().MNCORE_LOGGER_WARN("item list is not a map");
@@ -27,7 +42,7 @@ Dir::ItemList Dir::DeserializeParam(iDeserializer* des) {
     return {};
   }
 
-  ItemList items;
+  ItemMap items;
   for (size_t i = 0; i < *size; ++i) {
     iDeserializer::ScopeGuard _(des, i);
 
@@ -50,9 +65,7 @@ Dir::ItemList Dir::DeserializeParam(iDeserializer* des) {
 
     auto item = des->DeserializeObject<iDirItem>();
     if (!item) continue;
-
-    item->Rename(*name);
-    items.push_back(std::move(item));
+    items[*name] = std::move(item);
   }
   return items;
 }
@@ -60,7 +73,7 @@ Dir::ItemList Dir::DeserializeParam(iDeserializer* des) {
 void Dir::SerializeParam(iSerializer* serializer) const {
   iSerializer::MapGuard map(serializer);
   for (auto& item : items_) {
-    map.Add(item->name(), item.get());
+    map.Add(item.first, item.second.get());
   }
 }
 
