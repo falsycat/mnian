@@ -4,36 +4,18 @@
 
 namespace mnian::core {
 
-std::unique_ptr<NullCommand> NullCommand::DeserializeParam(
-    iDeserializer* des) {
-  auto description = des->value<std::string>();
-  if (!description) {
-    des->logger().MNCORE_LOGGER_WARN("no description specified");
-    des->LogLocation();
-    description = "";
-  }
-  return std::make_unique<NullCommand>(*description);
+std::unique_ptr<NullCommand> NullCommand::DeserializeParam(iDeserializer* des) {
+  const auto desc = des->value<std::string>();
+  return std::make_unique<NullCommand>(desc? *desc: std::string(""));
 }
 
 void NullCommand::SerializeParam(iSerializer* serial) const {
-  serial->SerializeValue(description());
+  serial->SerializeValue(desc_);
 }
 
 
 std::unique_ptr<SquashedCommand> SquashedCommand::DeserializeParam(
     iDeserializer* des) {
-  des->Enter(std::string("description"));
-  auto description = des->value<std::string>();
-  des->Leave();
-
-  if (!description) {
-    des->logger().MNCORE_LOGGER_WARN("no description specified");
-    des->LogLocation();
-    description = "";
-  }
-
-  iDeserializer::ScopeGuard _(des, std::string("commands"));
-
   const auto size = des->size();
   if (!size) {
     des->logger().MNCORE_LOGGER_WARN("array expected");
@@ -43,7 +25,7 @@ std::unique_ptr<SquashedCommand> SquashedCommand::DeserializeParam(
 
   std::vector<std::unique_ptr<iCommand>> commands;
   for (size_t i = 0; i < *size; ++i) {
-    iDeserializer::ScopeGuard __(des, i);
+    iDeserializer::ScopeGuard _(des, i);
     auto cmd = des->DeserializeObject<iCommand>();
     if (!cmd) {
       des->logger().MNCORE_LOGGER_WARN("sub command is broken");
@@ -52,19 +34,12 @@ std::unique_ptr<SquashedCommand> SquashedCommand::DeserializeParam(
     }
     commands.push_back(std::move(cmd));
   }
-  return std::make_unique<SquashedCommand>(std::move(commands), *description);
+  return std::make_unique<SquashedCommand>(std::move(commands));
 }
 
 void SquashedCommand::SerializeParam(iSerializer* serial) const {
-  iSerializer::ArrayGuard commands(serial);
-  iSerializer::MapGuard   root(serial);
-
-  root.Add("description", Any(description()));
-  root.Add("commands", &commands);
-
-  for (auto& cmd : commands_) {
-    commands.Add(cmd.get());
-  }
+  iSerializer::ArrayGuard array(serial);
+  for (auto& cmd : commands_) array.Add(cmd.get());
 }
 
 }  // namespace mnian::core

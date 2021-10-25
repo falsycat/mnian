@@ -42,13 +42,13 @@ TEST(SquashedCommand, ApplyAndRevert) {
     cmds_.push_back(std::move(cmd));
   }
 
-  core::SquashedCommand squashed(std::move(cmds_), "");
+  core::SquashedCommand squashed(std::move(cmds_));
   squashed.Apply();
   squashed.Revert();
 }
 
 TEST(SquashedCommand, ApplyAndRevertEmpty) {
-  core::SquashedCommand squashed({}, "");
+  core::SquashedCommand squashed({});
   squashed.Apply();
   squashed.Revert();
 }

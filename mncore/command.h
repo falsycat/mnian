@@ -17,8 +17,7 @@ namespace mnian::core {
 class iCommand : public iPolymorphicSerializable {
  public:
   iCommand() = delete;
-  iCommand(const char* type, const std::string& description) :
-      iPolymorphicSerializable(type), description_(description) {
+  explicit iCommand(const char* type) : iPolymorphicSerializable(type) {
   }
 
   iCommand(const iCommand&) = delete;
@@ -34,28 +33,20 @@ class iCommand : public iPolymorphicSerializable {
   virtual void Apply() = 0;
   virtual void Revert() = 0;
 
-
-  const std::string& description() const {
-    return description_;
-  }
-
- private:
-  std::string description_;
+  virtual std::string description() const = 0;
 };
 
 
 class NullCommand : public iCommand {
  public:
-  static constexpr const char* kType = "Null";
+  static constexpr const char* kType = "mnian::core::NullCommand";
 
 
   static std::unique_ptr<NullCommand> DeserializeParam(iDeserializer* des);
 
 
-  explicit NullCommand(const std::string& description) :
-      iCommand(kType, description) {
-  }
-  NullCommand() : NullCommand("(no description)") {
+  explicit NullCommand(const std::string& desc = "(null command)") :
+      iCommand(kType), desc_(desc) {
   }
 
   NullCommand(const NullCommand&) = delete;
@@ -70,23 +61,30 @@ class NullCommand : public iCommand {
   void Revert() override {
   }
 
+
+  std::string description() const override {
+    return desc_;
+  }
+
  protected:
   void SerializeParam(iSerializer* serial) const override;
+
+ private:
+  std::string desc_;
 };
 
 
 // SquashedCommand is a sequence of one or more commands.
 class SquashedCommand : public iCommand {
  public:
-  static constexpr const char* kType = "Squashed";
+  static constexpr const char* kType = "mnian::core::SquashedCommand";
 
 
   static std::unique_ptr<SquashedCommand> DeserializeParam(iDeserializer* des);
 
 
-  SquashedCommand(std::vector<std::unique_ptr<iCommand>>&& commands,
-                  const std::string& description) :
-      iCommand(kType, description), commands_(std::move(commands)) {
+  explicit SquashedCommand(std::vector<std::unique_ptr<iCommand>>&& commands) :
+      iCommand(kType), commands_(std::move(commands)) {
   }
 
   SquashedCommand(const SquashedCommand&) = delete;
@@ -109,6 +107,10 @@ class SquashedCommand : public iCommand {
     }
   }
 
+
+  std::string description() const override {
+    return "(squashed command)";
+  }
 
   iCommand& commands(size_t i) const {
     assert(i < commands_.size());
