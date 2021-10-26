@@ -159,7 +159,7 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
   }
   void NotifyRemove() {
     for (auto& observer : observers_) {
-      observer->ObserveMove();
+      observer->ObserveRemove();
     }
   }
 
