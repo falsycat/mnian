@@ -370,6 +370,28 @@ class iDeserializer {
   }
 
 
+  template <typename T>
+  std::optional<std::vector<T>> values() const {
+    const auto n = size();
+    if (!n) return std::nullopt;
+
+    std::vector<T> ret;
+    for (size_t i = 0; i < *n; ++i) {
+      ScopeGuard _(const_cast<iDeserializer*>(this), i);
+
+      auto v = value<T>();
+      if (!v) return std::nullopt;
+      ret.push_back(std::move(*v));
+    }
+    return ret;
+  }
+  template <typename T>
+  std::vector<T> values(std::vector<T>&& def) const {
+    auto ret = values<T>();
+    return ret? std::move(*ret): std::move(def);
+  }
+
+
   iLogger& logger() const {
     return *logger_;
   }

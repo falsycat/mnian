@@ -5,9 +5,11 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
+#include "mncore/dir.h"
 #include "mncore/serialize.h"
 
 
@@ -33,20 +35,17 @@ class iCommand : public iPolymorphicSerializable {
   virtual void Apply() = 0;
   virtual void Revert() = 0;
 
-  virtual std::string description() const = 0;
+  virtual std::string description() const {
+    return "(no description)";
+  }
 };
 
 
 class NullCommand : public iCommand {
  public:
-  static constexpr const char* kType = "mnian::core::NullCommand";
-
-
-  static std::unique_ptr<NullCommand> DeserializeParam(iDeserializer* des);
-
-
-  explicit NullCommand(const std::string& desc = "(null command)") :
-      iCommand(kType), desc_(desc) {
+  explicit NullCommand(const char*        type,
+                       const std::string& desc = "(null command)") :
+      iCommand(type), desc_(desc) {
   }
 
   NullCommand(const NullCommand&) = delete;
@@ -77,14 +76,15 @@ class NullCommand : public iCommand {
 // SquashedCommand is a sequence of one or more commands.
 class SquashedCommand : public iCommand {
  public:
-  static constexpr const char* kType = "mnian::core::SquashedCommand";
+  using CommandList = std::vector<std::unique_ptr<iCommand>>;
 
 
-  static std::unique_ptr<SquashedCommand> DeserializeParam(iDeserializer* des);
+  static std::optional<CommandList> DeserializeParam(iDeserializer* des);
 
 
-  explicit SquashedCommand(std::vector<std::unique_ptr<iCommand>>&& commands) :
-      iCommand(kType), commands_(std::move(commands)) {
+  SquashedCommand() = delete;
+  SquashedCommand(const char* type, CommandList&& commands) :
+      iCommand(type), commands_(std::move(commands)) {
   }
 
   SquashedCommand(const SquashedCommand&) = delete;
@@ -126,7 +126,87 @@ class SquashedCommand : public iCommand {
  private:
   std::string description_;
 
-  std::vector<std::unique_ptr<iCommand>> commands_;
+  CommandList commands_;
+};
+
+
+// DirCommand is a command to modify Dir.
+class DirCommand : public iCommand {
+ public:
+  enum Verb {
+    kAdd,
+    kRemove,
+  };
+
+  using Param = std::tuple<
+      Verb, Dir*, std::string, std::unique_ptr<iDirItem>>;
+
+
+  static std::optional<Param> DeserializeParam(iDeserializer*);
+
+
+  DirCommand() = delete;
+  DirCommand(const char* type, Param&& p) :
+      iCommand(type),
+      verb_(std::get<0>(p)),
+      dir_(std::get<1>(p)),
+      name_(std::get<2>(p)),
+      item_(std::move(std::get<3>(p))) {
+  }
+  DirCommand(const char*                 type,
+             Dir*                        dir,
+             const std::string&          name,
+             std::unique_ptr<iDirItem>&& item) :
+      DirCommand(type, {kAdd, dir, name, std::move(item)}) {
+    assert(dir_);
+    assert(!iDirItem::ValidateName(name_));
+    assert(item_);
+  }
+  DirCommand(const char* type, Dir* dir, const std::string& name) :
+      DirCommand(type, {kRemove, dir, name, nullptr}) {
+    assert(dir_);
+    assert(!iDirItem::ValidateName(name_));
+  }
+
+  DirCommand(const DirCommand&) = delete;
+  DirCommand(DirCommand&&) = delete;
+
+  DirCommand& operator=(const DirCommand&) = delete;
+  DirCommand& operator=(DirCommand&&) = delete;
+
+
+  void Apply() override {
+    switch (verb_) {
+    case kAdd:    Add();    break;
+    case kRemove: Remove(); break;
+    }
+  }
+  void Revert() override {
+    switch (verb_) {
+    case kAdd:    Remove(); break;
+    case kRemove: Add();    break;
+    }
+  }
+
+ protected:
+  void SerializeParam(iSerializer*) const override;
+
+ private:
+  void Add() {
+    dir_->Add(name_, std::move(item_));
+  }
+  void Remove() {
+    item_ = dir_->Remove(name_);
+  }
+
+
+  const Verb verb_;
+
+  Dir* dir_;
+
+  std::string name_;
+
+  std::unique_ptr<iDirItem> item_;
 };
 
 }  // namespace mnian::core
