@@ -114,7 +114,7 @@ target_link_libraries(imgui
 
 FetchContent_Declare(
   mulan
-  URL "https://github.com/falsycat/mulan/archive/refs/tags/v1.1.0.zip"
+  URL "https://github.com/falsycat/mulan/archive/refs/tags/v1.1.1.zip"
 )
 FetchContent_MakeAvailable(mulan)
 
