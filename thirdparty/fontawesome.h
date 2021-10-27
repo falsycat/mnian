@@ -1,4 +1,7 @@
-// No copyright
+// Copyright (c) 2017 Juliette Foucaut and Doug Binks
+//
+// Modified version of https://github.com/juliettef/IconFontCppHeaders/blob/main/IconsFontAwesome5.h,
+// which is protected by zlib License
 #pragma once
 
 #define ICON_MIN_FA 0xe005
