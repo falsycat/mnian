@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "mntest/dir.h"
+#include "mntest/file.h"
 
 
 namespace mnian::test {
@@ -105,6 +106,24 @@ TEST(DirCommand, Remove) {
     cmd.Apply();
   }
   ASSERT_FALSE(dir.Find("hello"));
+}
+
+TEST(FileRefReplaceCommand, Replace) {
+  ::testing::StrictMock<MockFile> f1("file://f1");
+  ::testing::StrictMock<MockFile> f2("file://f2");
+
+  core::FileRef fref({}, "", &f1, core::FileRef::kReadable);
+
+  core::FileRefReplaceCommand cmd("", &fref, &f2);
+
+  cmd.Apply();
+  ASSERT_EQ(&fref.entity(), &f2);
+
+  cmd.Revert();
+  ASSERT_EQ(&fref.entity(), &f1);
+
+  cmd.Apply();
+  ASSERT_EQ(&fref.entity(), &f2);
 }
 
 }  // namespace mnian::test

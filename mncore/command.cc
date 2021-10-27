@@ -171,4 +171,46 @@ void DirMoveCommand::SerializeParam(iSerializer* serial) const {
   root.Add("dst_name", dst_name_);
 }
 
+
+std::optional<FileRefReplaceCommand::Param>
+FileRefReplaceCommand::DeserializeParam(iDeserializer* des) {
+  des->Enter("target");
+  auto fref = FileRef::DeserializeRef(des);
+  des->Leave();
+
+  if (!fref) {
+    des->logger().MNCORE_LOGGER_WARN("missing target item");
+    des->LogLocation();
+    return std::nullopt;
+  }
+
+  des->Enter("url");
+  auto url = des->value<std::string>();
+  des->Leave();
+
+  if (!url) {
+    des->logger().MNCORE_LOGGER_WARN("invalid url");
+    des->LogLocation();
+    return std::nullopt;
+  }
+
+  auto file = des->app().fstore().Load(*url);
+  if (!file) {
+    des->logger().MNCORE_LOGGER_WARN("failed to load file: "+*url);
+    des->LogLocation();
+    return std::nullopt;
+  }
+  return std::make_tuple(fref, file);
+}
+
+void FileRefReplaceCommand::SerializeParam(iSerializer* serial) const {
+  iSerializer::ArrayGuard target(serial);
+  const auto target_path = target_->GeneratePath();
+  for (const auto& term : target_path) target.Add(term);
+
+  iSerializer::MapGuard root(serial);
+  root.Add("target", &target);
+  root.Add("url", file_->url());
+}
+
 }  // namespace mnian::core

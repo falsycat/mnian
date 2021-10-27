@@ -3,6 +3,7 @@
 // Command object can modify any in project context and revert it.
 #pragma once
 
+#include <cassert>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -262,6 +263,56 @@ class DirMoveCommand : public iCommand {
   Dir* dst_;
 
   std::string dst_name_;
+};
+
+
+// FileRefReplaceCommand is a command to replace an entity of FileRef.
+class FileRefReplaceCommand : public iCommand {
+ public:
+  using Param = std::tuple<FileRef*, iFile*>;
+
+
+  static std::optional<Param> DeserializeParam(iDeserializer*);
+
+
+  FileRefReplaceCommand() = delete;
+  FileRefReplaceCommand(const char* type, Param&& p) :
+      iCommand(type), target_(std::get<0>(p)), file_(std::get<1>(p)) {
+  }
+  FileRefReplaceCommand(const char* type, FileRef* target, iFile* file) :
+      FileRefReplaceCommand(type, {target, file}) {
+    assert(target);
+    assert(file);
+  }
+
+  FileRefReplaceCommand(const FileRefReplaceCommand&) = delete;
+  FileRefReplaceCommand(FileRefReplaceCommand&&) = delete;
+
+  FileRefReplaceCommand& operator=(const FileRefReplaceCommand&) = delete;
+  FileRefReplaceCommand& operator=(FileRefReplaceCommand&&) = delete;
+
+
+  void Apply() override {
+    Swap();
+  }
+  void Revert() override {
+    Swap();
+  }
+
+ protected:
+  void SerializeParam(iSerializer*) const override;
+
+ private:
+  void Swap() {
+    auto temp = &target_->entity();
+    target_->ReplaceEntity(file_);
+    file_ = temp;
+  }
+
+
+  FileRef* target_;
+
+  iFile* file_;
 };
 
 }  // namespace mnian::core
