@@ -209,4 +209,59 @@ class DirCommand : public iCommand {
   std::unique_ptr<iDirItem> item_;
 };
 
+
+// DirMoveCommand is a command to move items between Dirs.
+class DirMoveCommand : public iCommand {
+ public:
+  using Param = std::tuple<Dir*, std::string, Dir*, std::string>;
+
+
+  static std::optional<Param> DeserializeParam(iDeserializer*);
+
+
+  DirMoveCommand() = delete;
+  DirMoveCommand(const char* type, Param&& p) :
+      iCommand(type),
+      src_(std::get<0>(p)), src_name_(std::get<1>(p)),
+      dst_(std::get<2>(p)), dst_name_(std::get<3>(p)) {
+  }
+  DirMoveCommand(const char*                 type,
+                 Dir*                        src,
+                 const std::string&          src_name,
+                 Dir*                        dst,
+                 const std::string&          dst_name) :
+      DirMoveCommand(type, {src, src_name, dst, dst_name}) {
+    assert(src);
+    assert(!iDirItem::ValidateName(src_name));
+    assert(dst);
+    assert(!iDirItem::ValidateName(dst_name));
+  }
+
+  DirMoveCommand(const DirMoveCommand&) = delete;
+  DirMoveCommand(DirMoveCommand&&) = delete;
+
+  DirMoveCommand& operator=(const DirMoveCommand&) = delete;
+  DirMoveCommand& operator=(DirMoveCommand&&) = delete;
+
+
+  void Apply() override {
+    src_->Move(src_name_, dst_, dst_name_);
+  }
+  void Revert() override {
+    dst_->Move(dst_name_, src_, src_name_);
+  }
+
+ protected:
+  void SerializeParam(iSerializer*) const override;
+
+ private:
+  Dir* src_;
+
+  std::string src_name_;
+
+  Dir* dst_;
+
+  std::string dst_name_;
+};
+
 }  // namespace mnian::core

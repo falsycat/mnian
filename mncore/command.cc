@@ -49,25 +49,11 @@ std::optional<DirCommand::Param> DirCommand::DeserializeParam(
   des->Leave();
 
   des->Enter("dir");
-  auto dir_path = des->values<std::string>();
+  auto dir = Dir::DeserializeRef(des);
   des->Leave();
 
-  if (!dir_path) {
-    des->logger().MNCORE_LOGGER_WARN("expected a path");
-    des->LogLocation();
-    return std::nullopt;
-  }
-
-  auto dir_item = des->app().project().root().FindPath(*dir_path);
-  if (!dir_item) {
-    des->logger().MNCORE_LOGGER_WARN("missing path");
-    des->LogLocation();
-    return std::nullopt;
-  }
-
-  auto dir = dynamic_cast<Dir*>(dir_item);
   if (!dir) {
-    des->logger().MNCORE_LOGGER_WARN("the item is not Dir");
+    des->logger().MNCORE_LOGGER_WARN("missing Dir");
     des->LogLocation();
     return std::nullopt;
   }
@@ -120,6 +106,69 @@ void DirCommand::SerializeParam(iSerializer* serial) const {
 
   const auto dir_path = dir_->GeneratePath();
   for (auto& term : dir_path) dir.Add(term);
+}
+
+
+std::optional<DirMoveCommand::Param> DirMoveCommand::DeserializeParam(
+    iDeserializer* des) {
+  des->Enter("src");
+  auto src = Dir::DeserializeRef(des);
+  des->Leave();
+
+  if (!src) {
+    des->logger().MNCORE_LOGGER_WARN("missing src item");
+    des->LogLocation();
+    return std::nullopt;
+  }
+
+  des->Enter("src_name");
+  const auto src_name = des->value<std::string>();
+  des->Leave();
+
+  if (!src_name || iDirItem::ValidateName(*src_name)) {
+    des->logger().MNCORE_LOGGER_WARN("invalid src_name");
+    des->LogLocation();
+    return std::nullopt;
+  }
+
+  des->Enter("dst");
+  auto dst = Dir::DeserializeRef(des);
+  des->Leave();
+
+  if (!dst) {
+    des->logger().MNCORE_LOGGER_WARN("missing dst item");
+    des->LogLocation();
+    return std::nullopt;
+  }
+
+  des->Enter("dst_name");
+  const auto dst_name = des->value<std::string>();
+  des->Leave();
+
+  if (!dst_name || iDirItem::ValidateName(*dst_name)) {
+    des->logger().MNCORE_LOGGER_WARN("invalid dst_name");
+    des->LogLocation();
+    return std::nullopt;
+  }
+  return std::make_tuple(src, *src_name, dst, *dst_name);
+}
+
+void DirMoveCommand::SerializeParam(iSerializer* serial) const {
+  assert(serial);
+
+  iSerializer::ArrayGuard src(serial);
+  const auto src_path = src_->GeneratePath();
+  for (auto& term : src_path) src.Add(term);
+
+  iSerializer::ArrayGuard dst(serial);
+  const auto dst_path = dst_->GeneratePath();
+  for (auto& term : dst_path) dst.Add(term);
+
+  iSerializer::MapGuard root(serial);
+  root.Add("src", &src);
+  root.Add("src_name", src_name_);
+  root.Add("dst", &dst);
+  root.Add("dst_name", dst_name_);
 }
 
 }  // namespace mnian::core
