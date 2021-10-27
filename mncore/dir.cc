@@ -1,6 +1,8 @@
 // No copyright
 #include "mncore/dir.h"
 
+#include "mncore/app.h"
+
 
 namespace mnian::core {
 
@@ -16,6 +18,15 @@ std::optional<std::string> iDirItem::ValidateName(const std::string& name) {
     }
   }
   return std::nullopt;
+}
+
+iDirItem* iDirItem::DeserializeRef(iDeserializer* des) {
+  const auto path = des->values<std::string>();
+  if (!path) return nullptr;
+
+  auto item = des->app().project().root().FindPath(*path);
+  if (!item) return nullptr;
+  return item;
 }
 
 std::vector<std::string> iDirItem::GeneratePath() const {

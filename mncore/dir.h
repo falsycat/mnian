@@ -104,6 +104,11 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
   static std::optional<std::string> ValidateName(const std::string& name);
 
 
+  // Deserializes a reference to an item from path expressed in string array.
+  // Returns nullptr if no such item is found.
+  static iDirItem* DeserializeRef(iDeserializer* des);
+
+
   iDirItem() = delete;
   iDirItem(ActionList&& actions, const char* type) :
       iActionable(std::move(actions)),
@@ -176,6 +181,12 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
 class Dir : public iDirItem {
  public:
   using ItemMap = std::map<std::string, std::unique_ptr<iDirItem>>;
+
+  // Deserializes a reference to Dir from path expressed in string array.
+  // Returns nullptr if no such item is found.
+  static Dir* DeserializeRef(iDeserializer* des) {
+    return dynamic_cast<Dir*>(iDirItem::DeserializeRef(des));
+  }
 
   static ItemMap DeserializeParam(iDeserializer*);
 
@@ -302,6 +313,12 @@ class FileRef : public iDirItem {
 
   static std::optional<Flags> ParseFlags(const std::string&);
 
+  // Deserializes a reference to FileRef from path expressed in string array.
+  // Returns nullptr if no such item is found.
+  static FileRef* DeserializeRef(iDeserializer* des) {
+    return dynamic_cast<FileRef*>(iDirItem::DeserializeRef(des));
+  }
+
 
   FileRef() = delete;
   FileRef(ActionList&& actions, const char* type, iFile* file, Flags flags) :
@@ -386,9 +403,16 @@ class FileRef : public iDirItem {
 };
 
 
-// FileRef is a DirItem which wraps iNode object.
+// NodeRef is a DirItem which wraps iNode object.
 class NodeRef : public iDirItem {
  public:
+  // Deserializes a reference to NodeRef from path expressed in string array.
+  // Returns nullptr if no such item is found.
+  static NodeRef* DeserializeRef(iDeserializer* des) {
+    return dynamic_cast<NodeRef*>(iDirItem::DeserializeRef(des));
+  }
+
+
   NodeRef() = delete;
   NodeRef(ActionList&&             actions,
           const char*              type,
