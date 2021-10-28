@@ -147,13 +147,6 @@ class DirCommand : public iCommand {
 
 
   DirCommand() = delete;
-  DirCommand(const char* type, Param&& p) :
-      iCommand(type),
-      verb_(std::get<0>(p)),
-      dir_(std::get<1>(p)),
-      name_(std::get<2>(p)),
-      item_(std::move(std::get<3>(p))) {
-  }
   DirCommand(const char*                 type,
              Dir*                        dir,
              const std::string&          name,
@@ -190,6 +183,15 @@ class DirCommand : public iCommand {
   }
 
  protected:
+  DirCommand(const char* type, Param&& p) :
+      iCommand(type),
+      verb_(std::get<0>(p)),
+      dir_(std::get<1>(p)),
+      name_(std::get<2>(p)),
+      item_(std::move(std::get<3>(p))) {
+  }
+
+
   void SerializeParam(iSerializer*) const override;
 
  private:
@@ -221,11 +223,6 @@ class DirMoveCommand : public iCommand {
 
 
   DirMoveCommand() = delete;
-  DirMoveCommand(const char* type, Param&& p) :
-      iCommand(type),
-      src_(std::get<0>(p)), src_name_(std::get<1>(p)),
-      dst_(std::get<2>(p)), dst_name_(std::get<3>(p)) {
-  }
   DirMoveCommand(const char*                 type,
                  Dir*                        src,
                  const std::string&          src_name,
@@ -253,6 +250,13 @@ class DirMoveCommand : public iCommand {
   }
 
  protected:
+  DirMoveCommand(const char* type, Param&& p) :
+      iCommand(type),
+      src_(std::get<0>(p)), src_name_(std::get<1>(p)),
+      dst_(std::get<2>(p)), dst_name_(std::get<3>(p)) {
+  }
+
+
   void SerializeParam(iSerializer*) const override;
 
  private:
@@ -276,9 +280,6 @@ class FileRefReplaceCommand : public iCommand {
 
 
   FileRefReplaceCommand() = delete;
-  FileRefReplaceCommand(const char* type, Param&& p) :
-      iCommand(type), target_(std::get<0>(p)), file_(std::get<1>(p)) {
-  }
   FileRefReplaceCommand(const char* type, FileRef* target, iFile* file) :
       FileRefReplaceCommand(type, {target, file}) {
     assert(target);
@@ -300,6 +301,11 @@ class FileRefReplaceCommand : public iCommand {
   }
 
  protected:
+  FileRefReplaceCommand(const char* type, Param&& p) :
+      iCommand(type), target_(std::get<0>(p)), file_(std::get<1>(p)) {
+  }
+
+
   void SerializeParam(iSerializer*) const override;
 
  private:
@@ -313,6 +319,57 @@ class FileRefReplaceCommand : public iCommand {
   FileRef* target_;
 
   iFile* file_;
+};
+
+
+// FileRefFlagCommand is a command to modify flag bits of FileRef.
+class FileRefFlagCommand : public iCommand {
+ public:
+  using Param = std::tuple<FileRef*, FileRef::Flag, bool>;
+
+
+  static std::optional<Param> DeserializeParam(iDeserializer*);
+
+
+  FileRefFlagCommand() = delete;
+  FileRefFlagCommand(const char*   type,
+                     FileRef*      target,
+                     FileRef::Flag flag,
+                     bool          set) :
+      FileRefFlagCommand(type, {target, flag, set}) {
+    assert(target);
+    assert(flag && !(flag & (flag-1)));
+  }
+
+  FileRefFlagCommand(const FileRefFlagCommand&) = delete;
+  FileRefFlagCommand(FileRefFlagCommand&&) = delete;
+
+  FileRefFlagCommand& operator=(const FileRefFlagCommand&) = delete;
+  FileRefFlagCommand& operator=(FileRefFlagCommand&&) = delete;
+
+
+  void Apply() override {
+    set_? target_->SetFlag(flag_): target_->UnsetFlag(flag_);
+  }
+  void Revert() override {
+    set_? target_->UnsetFlag(flag_): target_->SetFlag(flag_);
+  }
+
+ protected:
+  FileRefFlagCommand(const char* type, Param&& p) :
+      iCommand(type),
+      target_(std::get<0>(p)), flag_(std::get<1>(p)), set_(std::get<2>(p)) {
+  }
+
+
+  void SerializeParam(iSerializer*) const override;
+
+ private:
+  FileRef* target_;
+
+  FileRef::Flag flag_;
+
+  bool set_;
 };
 
 }  // namespace mnian::core

@@ -89,16 +89,29 @@ void Dir::SerializeParam(iSerializer* serializer) const {
 }
 
 
+std::string FileRef::StringifyFlags(Flags flags) {
+  std::string ret;
+  if (flags & kReadable) ret += 'r';
+  if (flags & kWritable) ret += 'w';
+  return ret;
+}
+
 std::optional<FileRef::Flags> FileRef::ParseFlags(const std::string& v) {
-  Flags flags = kNone;
+  Flags ret = kNone;
   for (auto c : v) {
-    switch (c) {
-    case 'r': flags = flags | kReadable; break;
-    case 'w': flags = flags | kWritable; break;
-    default: return std::nullopt;
-    }
+    const auto f = ParseFlag(c);
+    if (!f) return std::nullopt;
+    ret = ret | *f;
   }
-  return flags;
+  return ret;
+}
+
+std::optional<FileRef::Flag> FileRef::ParseFlag(char c) {
+  switch (c) {
+  case 'r': return kReadable; break;
+  case 'w': return kWritable; break;
+  default:  return std::nullopt;
+  }
 }
 
 void FileRef::SerializeParam(iSerializer* serializer) const {

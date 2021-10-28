@@ -213,4 +213,50 @@ void FileRefReplaceCommand::SerializeParam(iSerializer* serial) const {
   root.Add("url", file_->url());
 }
 
+
+std::optional<FileRefFlagCommand::Param> FileRefFlagCommand::DeserializeParam(
+    iDeserializer* des) {
+  des->Enter("target");
+  const auto target = FileRef::DeserializeRef(des);
+  des->Leave();
+
+  if (!target) {
+    des->logger().MNCORE_LOGGER_WARN("missing target");
+    des->LogLocation();
+    return std::nullopt;
+  }
+
+  des->Enter("flag");
+  const auto flag = FileRef::DeserializeFlag(des);
+  des->Leave();
+
+  if (!flag) {
+    des->logger().MNCORE_LOGGER_WARN("no flag specified");
+    des->LogLocation();
+    return std::nullopt;
+  }
+
+  des->Enter("set");
+  const auto set = des->value<bool>();
+  des->Leave();
+
+  if (!set) {
+    des->logger().MNCORE_LOGGER_WARN("parameter 'set' is not specified");
+    des->LogLocation();
+    return std::nullopt;
+  }
+  return std::make_tuple(target, *flag, *set);
+}
+
+void FileRefFlagCommand::SerializeParam(iSerializer* serial) const {
+  iSerializer::ArrayGuard target(serial);
+  const auto target_path = target_->GeneratePath();
+  for (const auto& term : target_path) target.Add(term);
+
+  iSerializer::MapGuard root(serial);
+  root.Add("target", &target);
+  root.Add("flag",   FileRef::StringifyFlags(flag_));
+  root.Add("set",    set_);
+}
+
 }  // namespace mnian::core

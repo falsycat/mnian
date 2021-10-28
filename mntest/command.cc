@@ -126,4 +126,22 @@ TEST(FileRefReplaceCommand, Replace) {
   ASSERT_EQ(&fref.entity(), &f2);
 }
 
+TEST(FileRefFlagCommand, SetFlag) {
+  ::testing::StrictMock<MockFile> f("file://f");
+
+  core::FileRef fref({}, "", &f, core::FileRef::kNone);
+
+  // This command makes it unreadable.
+  core::FileRefFlagCommand cmd("", &fref, core::FileRef::kReadable, false);
+
+  cmd.Apply();
+  ASSERT_FALSE(fref.readable());
+
+  cmd.Revert();
+  ASSERT_TRUE(fref.readable());
+
+  cmd.Apply();
+  ASSERT_FALSE(fref.readable());
+}
+
 }  // namespace mnian::test
