@@ -316,7 +316,7 @@ class NodeStore final : public iSerializable {
  private:
   std::unordered_map<iNode::Id, std::unique_ptr<iNode>> items_;
 
-  iNode::Id next_;
+  iNode::Id next_ = 0;
 };
 
 
