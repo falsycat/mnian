@@ -103,74 +103,28 @@ class iTask {
 };
 
 
-class TaskQueue final {
+class Task : public iTask {
  public:
-  TaskQueue() = default;
-
-  TaskQueue(const TaskQueue&) = delete;
-  TaskQueue(TaskQueue&&) = delete;
-
-  TaskQueue& operator=(const TaskQueue&) = delete;
-  TaskQueue& operator=(TaskQueue&&) = delete;
+  using F = std::function<void(void)>;
 
 
-  // Each of attached tasks will be executed by Dequeue() after it's ready.
-  void Attach(std::shared_ptr<iTask> task) {
-    assert(task);
-
-    std::lock_guard<std::mutex> _(mtx_);
-    tasks_.push_back(std::move(task));
-
-    cv_.notify_all();
+  Task() = delete;
+  explicit Task(F&& func) : func_(std::move(func)) {
   }
 
-  // Dequeues and Executes one of tasks whose ready() is true. Returns
-  // true if such task is found, otherwise false.
-  bool Dequeue() {
-    std::shared_ptr<iTask> task;
-    {
-      std::lock_guard<std::mutex> _(mtx_);
+  Task(const Task&) = delete;
+  Task(Task&&) = delete;
 
-      auto itr = std::find_if(tasks_.begin(), tasks_.end(),
-                              [](auto& x) { return x->ready(); });
-      if (itr == tasks_.end()) return false;
+  Task& operator=(const Task&) = delete;
+  Task& operator=(Task&&) = delete;
 
-      task = std::move(*itr);
-      tasks_.erase(itr);
-    }
-    task->Exec();
-
-    std::lock_guard<std::mutex> _(mtx_);
-    cv_.notify_all();
-    return true;
-  }
-
-  // Wakes up threads sleeping by Sleep() forcibly.
-  void WakeUp() {
-    std::lock_guard<std::mutex> _(mtx_);
-    cv_.notify_all();
-  }
-
-  // Blocks the current thread until WakeUp() called, timeout elapsed, or
-  // the queue changed.
-  template <typename Rep, typename Period>
-  void Sleep(const std::chrono::duration<Rep, Period>& timeout) {
-    std::unique_lock<std::mutex> k(mtx_);
-    cv_.wait_for(k, timeout);
-  }
-
-
-  size_t size() {
-    std::lock_guard<std::mutex> _(mtx_);
-    return tasks_.size();
+ protected:
+  void DoExec() override {
+    func_();
   }
 
  private:
-  std::mutex mtx_;
-
-  std::condition_variable cv_;
-
-  std::vector<std::shared_ptr<iTask>> tasks_;
+  F func_;
 };
 
 
@@ -282,6 +236,84 @@ class iLambda : public iTask {
 
   std::vector<In>  in_;
   std::vector<Out> out_;
+};
+
+
+class TaskQueue final {
+ public:
+  TaskQueue() = default;
+
+  TaskQueue(const TaskQueue&) = delete;
+  TaskQueue(TaskQueue&&) = delete;
+
+  TaskQueue& operator=(const TaskQueue&) = delete;
+  TaskQueue& operator=(TaskQueue&&) = delete;
+
+
+  // Each of attached tasks will be executed by Dequeue() after it's ready.
+  void Attach(std::shared_ptr<iTask> task) {
+    assert(task);
+
+    std::lock_guard<std::mutex> _(mtx_);
+    tasks_.push_back(std::move(task));
+
+    cv_.notify_all();
+  }
+
+  // Creates and Attaches new task that executes the passed function.
+  void Exec(Task::F&& func) {
+    auto task = std::make_shared<Task>(std::move(func));
+    Attach(task);
+    task->Trigger();
+  }
+
+  // Dequeues and Executes one of tasks whose ready() is true. Returns
+  // true if such task is found, otherwise false.
+  bool Dequeue() {
+    std::shared_ptr<iTask> task;
+    {
+      std::lock_guard<std::mutex> _(mtx_);
+
+      auto itr = std::find_if(tasks_.begin(), tasks_.end(),
+                              [](auto& x) { return x->ready(); });
+      if (itr == tasks_.end()) return false;
+
+      task = std::move(*itr);
+      tasks_.erase(itr);
+    }
+    task->Exec();
+
+    std::lock_guard<std::mutex> _(mtx_);
+    cv_.notify_all();
+    return true;
+  }
+
+  // Wakes up threads sleeping by Sleep() forcibly.
+  void WakeUp() {
+    std::lock_guard<std::mutex> _(mtx_);
+    cv_.notify_all();
+  }
+
+  // Blocks the current thread until WakeUp() called, timeout elapsed, or
+  // the queue changed.
+  template <typename Rep, typename Period>
+  void Sleep(const std::chrono::duration<Rep, Period>& timeout) {
+    std::unique_lock<std::mutex> k(mtx_);
+    cv_.wait_for(k, timeout);
+  }
+
+
+  size_t size() {
+    std::lock_guard<std::mutex> _(mtx_);
+    return tasks_.size();
+  }
+
+ private:
+  std::mutex mtx_;
+
+  std::condition_variable cv_;
+
+  std::vector<std::shared_ptr<iTask>> tasks_;
 };
 
 }  // namespace mnian::core
