@@ -21,11 +21,11 @@ static void CreateTree(
 
   auto& root = history->root();
   for (size_t i = 0; i < root_branch; ++i) {
-    root.Fork(std::make_unique<core::NullCommand>());
+    root.Fork(std::make_unique<core::NullCommand>(""));
 
     auto& branch = *root.branch()[i];
     for (size_t j = 0; j < child_branch; ++j) {
-      branch.Fork(std::make_unique<core::NullCommand>());
+      branch.Fork(std::make_unique<core::NullCommand>(""));
     }
   }
 }
@@ -188,7 +188,7 @@ TEST(HistoryItem, Fork) {
 
   auto& root = history.root();
   for (size_t i = 0; i < kCount; ++i) {
-    auto command = std::make_unique<core::NullCommand>();
+    auto command = std::make_unique<core::NullCommand>("");
     commands.push_back(command.get());
     root.Fork(std::move(command));
     ASSERT_EQ(root.branch().size(), i+1);

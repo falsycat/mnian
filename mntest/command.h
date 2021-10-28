@@ -15,8 +15,7 @@ class MockCommand : public core::iCommand {
   static constexpr const char* kType = "Mock";
 
 
-  explicit MockCommand(const std::string& description = "") :
-      iCommand(kType, description) {
+  MockCommand() : iCommand(kType) {
   }
 
   MockCommand(const MockCommand&) = delete;
@@ -30,6 +29,8 @@ class MockCommand : public core::iCommand {
   MOCK_METHOD(void, Revert, (), (override));
 
   MOCK_METHOD(void, SerializeParam, (core::iSerializer*), (const override));
+
+  MOCK_METHOD(std::string, description, (), (const override));
 };
 
 }  // namespace mnian::test

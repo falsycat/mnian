@@ -104,6 +104,11 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
   static std::optional<std::string> ValidateName(const std::string& name);
 
 
+  // Deserializes a reference to an item from path expressed in string array.
+  // Returns nullptr if no such item is found.
+  static iDirItem* DeserializeRef(iDeserializer* des);
+
+
   iDirItem() = delete;
   iDirItem(ActionList&& actions, const char* type) :
       iActionable(std::move(actions)),
@@ -159,7 +164,7 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
   }
   void NotifyRemove() {
     for (auto& observer : observers_) {
-      observer->ObserveMove();
+      observer->ObserveRemove();
     }
   }
 
@@ -176,6 +181,12 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
 class Dir : public iDirItem {
  public:
   using ItemMap = std::map<std::string, std::unique_ptr<iDirItem>>;
+
+  // Deserializes a reference to Dir from path expressed in string array.
+  // Returns nullptr if no such item is found.
+  static Dir* DeserializeRef(iDeserializer* des) {
+    return dynamic_cast<Dir*>(iDirItem::DeserializeRef(des));
+  }
 
   static ItemMap DeserializeParam(iDeserializer*);
 
@@ -300,7 +311,41 @@ class FileRef : public iDirItem {
   using Flags = uint16_t;
 
 
+  static std::string StringifyFlags(Flags);
+
   static std::optional<Flags> ParseFlags(const std::string&);
+  static std::optional<Flag>  ParseFlag(char c);
+
+  static std::optional<Flag> ParseFlag(const std::string& v) {
+    return v.size()? ParseFlag(v[0]): std::nullopt;
+  }
+
+  static std::optional<Flags> DeserializeFlags(iDeserializer* des) {
+    assert(des);
+
+    const auto str = des->value<std::string>();
+    if (!str) return std::nullopt;
+
+    const auto ret = ParseFlags(*str);
+    if (!ret) return std::nullopt;
+    return *ret;
+  }
+  static std::optional<Flag> DeserializeFlag(iDeserializer* des) {
+    assert(des);
+
+    const auto str = des->value<std::string>();
+    if (!str) return std::nullopt;
+
+    const auto ret = ParseFlag(*str);
+    if (!ret) return std::nullopt;
+    return *ret;
+  }
+
+  // Deserializes a reference to FileRef from path expressed in string array.
+  // Returns nullptr if no such item is found.
+  static FileRef* DeserializeRef(iDeserializer* des) {
+    return dynamic_cast<FileRef*>(iDirItem::DeserializeRef(des));
+  }
 
 
   FileRef() = delete;
@@ -386,9 +431,16 @@ class FileRef : public iDirItem {
 };
 
 
-// FileRef is a DirItem which wraps iNode object.
+// NodeRef is a DirItem which wraps iNode object.
 class NodeRef : public iDirItem {
  public:
+  // Deserializes a reference to NodeRef from path expressed in string array.
+  // Returns nullptr if no such item is found.
+  static NodeRef* DeserializeRef(iDeserializer* des) {
+    return dynamic_cast<NodeRef*>(iDirItem::DeserializeRef(des));
+  }
+
+
   NodeRef() = delete;
   NodeRef(ActionList&&             actions,
           const char*              type,

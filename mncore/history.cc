@@ -48,7 +48,7 @@ void History::Clear() {
   }
 
   next_ = 0;
-  root_ = CreateItem(std::make_unique<NullCommand>("ORIGIN"));
+  root_ = CreateItem(std::make_unique<NullCommand>("", "ORIGIN"));
   head_ = root_;
 
   for (auto observer : observers_) {

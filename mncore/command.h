@@ -3,11 +3,14 @@
 // Command object can modify any in project context and revert it.
 #pragma once
 
+#include <cassert>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
+#include "mncore/dir.h"
 #include "mncore/serialize.h"
 
 
@@ -17,8 +20,7 @@ namespace mnian::core {
 class iCommand : public iPolymorphicSerializable {
  public:
   iCommand() = delete;
-  iCommand(const char* type, const std::string& description) :
-      iPolymorphicSerializable(type), description_(description) {
+  explicit iCommand(const char* type) : iPolymorphicSerializable(type) {
   }
 
   iCommand(const iCommand&) = delete;
@@ -34,28 +36,17 @@ class iCommand : public iPolymorphicSerializable {
   virtual void Apply() = 0;
   virtual void Revert() = 0;
 
-
-  const std::string& description() const {
-    return description_;
+  virtual std::string description() const {
+    return "(no description)";
   }
-
- private:
-  std::string description_;
 };
 
 
 class NullCommand : public iCommand {
  public:
-  static constexpr const char* kType = "Null";
-
-
-  static std::unique_ptr<NullCommand> DeserializeParam(iDeserializer* des);
-
-
-  explicit NullCommand(const std::string& description) :
-      iCommand(kType, description) {
-  }
-  NullCommand() : NullCommand("(no description)") {
+  explicit NullCommand(const char*        type,
+                       const std::string& desc = "(null command)") :
+      iCommand(type), desc_(desc) {
   }
 
   NullCommand(const NullCommand&) = delete;
@@ -70,23 +61,31 @@ class NullCommand : public iCommand {
   void Revert() override {
   }
 
+
+  std::string description() const override {
+    return desc_;
+  }
+
  protected:
   void SerializeParam(iSerializer* serial) const override;
+
+ private:
+  std::string desc_;
 };
 
 
 // SquashedCommand is a sequence of one or more commands.
 class SquashedCommand : public iCommand {
  public:
-  static constexpr const char* kType = "Squashed";
+  using CommandList = std::vector<std::unique_ptr<iCommand>>;
 
 
-  static std::unique_ptr<SquashedCommand> DeserializeParam(iDeserializer* des);
+  static std::optional<CommandList> DeserializeParam(iDeserializer* des);
 
 
-  SquashedCommand(std::vector<std::unique_ptr<iCommand>>&& commands,
-                  const std::string& description) :
-      iCommand(kType, description), commands_(std::move(commands)) {
+  SquashedCommand() = delete;
+  SquashedCommand(const char* type, CommandList&& commands) :
+      iCommand(type), commands_(std::move(commands)) {
   }
 
   SquashedCommand(const SquashedCommand&) = delete;
@@ -110,6 +109,10 @@ class SquashedCommand : public iCommand {
   }
 
 
+  std::string description() const override {
+    return "(squashed command)";
+  }
+
   iCommand& commands(size_t i) const {
     assert(i < commands_.size());
     return *commands_[i];
@@ -124,7 +127,249 @@ class SquashedCommand : public iCommand {
  private:
   std::string description_;
 
-  std::vector<std::unique_ptr<iCommand>> commands_;
+  CommandList commands_;
+};
+
+
+// DirCommand is a command to modify Dir.
+class DirCommand : public iCommand {
+ public:
+  enum Verb {
+    kAdd,
+    kRemove,
+  };
+
+  using Param = std::tuple<
+      Verb, Dir*, std::string, std::unique_ptr<iDirItem>>;
+
+
+  static std::optional<Param> DeserializeParam(iDeserializer*);
+
+
+  DirCommand() = delete;
+  DirCommand(const char*                 type,
+             Dir*                        dir,
+             const std::string&          name,
+             std::unique_ptr<iDirItem>&& item) :
+      DirCommand(type, {kAdd, dir, name, std::move(item)}) {
+    assert(dir_);
+    assert(!iDirItem::ValidateName(name_));
+    assert(item_);
+  }
+  DirCommand(const char* type, Dir* dir, const std::string& name) :
+      DirCommand(type, {kRemove, dir, name, nullptr}) {
+    assert(dir_);
+    assert(!iDirItem::ValidateName(name_));
+  }
+
+  DirCommand(const DirCommand&) = delete;
+  DirCommand(DirCommand&&) = delete;
+
+  DirCommand& operator=(const DirCommand&) = delete;
+  DirCommand& operator=(DirCommand&&) = delete;
+
+
+  void Apply() override {
+    switch (verb_) {
+    case kAdd:    Add();    break;
+    case kRemove: Remove(); break;
+    }
+  }
+  void Revert() override {
+    switch (verb_) {
+    case kAdd:    Remove(); break;
+    case kRemove: Add();    break;
+    }
+  }
+
+ protected:
+  DirCommand(const char* type, Param&& p) :
+      iCommand(type),
+      verb_(std::get<0>(p)),
+      dir_(std::get<1>(p)),
+      name_(std::get<2>(p)),
+      item_(std::move(std::get<3>(p))) {
+  }
+
+
+  void SerializeParam(iSerializer*) const override;
+
+ private:
+  void Add() {
+    dir_->Add(name_, std::move(item_));
+  }
+  void Remove() {
+    item_ = dir_->Remove(name_);
+  }
+
+
+  const Verb verb_;
+
+  Dir* dir_;
+
+  std::string name_;
+
+  std::unique_ptr<iDirItem> item_;
+};
+
+
+// DirMoveCommand is a command to move items between Dirs.
+class DirMoveCommand : public iCommand {
+ public:
+  using Param = std::tuple<Dir*, std::string, Dir*, std::string>;
+
+
+  static std::optional<Param> DeserializeParam(iDeserializer*);
+
+
+  DirMoveCommand() = delete;
+  DirMoveCommand(const char*                 type,
+                 Dir*                        src,
+                 const std::string&          src_name,
+                 Dir*                        dst,
+                 const std::string&          dst_name) :
+      DirMoveCommand(type, {src, src_name, dst, dst_name}) {
+    assert(src);
+    assert(!iDirItem::ValidateName(src_name));
+    assert(dst);
+    assert(!iDirItem::ValidateName(dst_name));
+  }
+
+  DirMoveCommand(const DirMoveCommand&) = delete;
+  DirMoveCommand(DirMoveCommand&&) = delete;
+
+  DirMoveCommand& operator=(const DirMoveCommand&) = delete;
+  DirMoveCommand& operator=(DirMoveCommand&&) = delete;
+
+
+  void Apply() override {
+    src_->Move(src_name_, dst_, dst_name_);
+  }
+  void Revert() override {
+    dst_->Move(dst_name_, src_, src_name_);
+  }
+
+ protected:
+  DirMoveCommand(const char* type, Param&& p) :
+      iCommand(type),
+      src_(std::get<0>(p)), src_name_(std::get<1>(p)),
+      dst_(std::get<2>(p)), dst_name_(std::get<3>(p)) {
+  }
+
+
+  void SerializeParam(iSerializer*) const override;
+
+ private:
+  Dir* src_;
+
+  std::string src_name_;
+
+  Dir* dst_;
+
+  std::string dst_name_;
+};
+
+
+// FileRefReplaceCommand is a command to replace an entity of FileRef.
+class FileRefReplaceCommand : public iCommand {
+ public:
+  using Param = std::tuple<FileRef*, iFile*>;
+
+
+  static std::optional<Param> DeserializeParam(iDeserializer*);
+
+
+  FileRefReplaceCommand() = delete;
+  FileRefReplaceCommand(const char* type, FileRef* target, iFile* file) :
+      FileRefReplaceCommand(type, {target, file}) {
+    assert(target);
+    assert(file);
+  }
+
+  FileRefReplaceCommand(const FileRefReplaceCommand&) = delete;
+  FileRefReplaceCommand(FileRefReplaceCommand&&) = delete;
+
+  FileRefReplaceCommand& operator=(const FileRefReplaceCommand&) = delete;
+  FileRefReplaceCommand& operator=(FileRefReplaceCommand&&) = delete;
+
+
+  void Apply() override {
+    Swap();
+  }
+  void Revert() override {
+    Swap();
+  }
+
+ protected:
+  FileRefReplaceCommand(const char* type, Param&& p) :
+      iCommand(type), target_(std::get<0>(p)), file_(std::get<1>(p)) {
+  }
+
+
+  void SerializeParam(iSerializer*) const override;
+
+ private:
+  void Swap() {
+    auto temp = &target_->entity();
+    target_->ReplaceEntity(file_);
+    file_ = temp;
+  }
+
+
+  FileRef* target_;
+
+  iFile* file_;
+};
+
+
+// FileRefFlagCommand is a command to modify flag bits of FileRef.
+class FileRefFlagCommand : public iCommand {
+ public:
+  using Param = std::tuple<FileRef*, FileRef::Flag, bool>;
+
+
+  static std::optional<Param> DeserializeParam(iDeserializer*);
+
+
+  FileRefFlagCommand() = delete;
+  FileRefFlagCommand(const char*   type,
+                     FileRef*      target,
+                     FileRef::Flag flag,
+                     bool          set) :
+      FileRefFlagCommand(type, {target, flag, set}) {
+    assert(target);
+    assert(flag && !(flag & (flag-1)));
+  }
+
+  FileRefFlagCommand(const FileRefFlagCommand&) = delete;
+  FileRefFlagCommand(FileRefFlagCommand&&) = delete;
+
+  FileRefFlagCommand& operator=(const FileRefFlagCommand&) = delete;
+  FileRefFlagCommand& operator=(FileRefFlagCommand&&) = delete;
+
+
+  void Apply() override {
+    set_? target_->SetFlag(flag_): target_->UnsetFlag(flag_);
+  }
+  void Revert() override {
+    set_? target_->UnsetFlag(flag_): target_->SetFlag(flag_);
+  }
+
+ protected:
+  FileRefFlagCommand(const char* type, Param&& p) :
+      iCommand(type),
+      target_(std::get<0>(p)), flag_(std::get<1>(p)), set_(std::get<2>(p)) {
+  }
+
+
+  void SerializeParam(iSerializer*) const override;
+
+ private:
+  FileRef* target_;
+
+  FileRef::Flag flag_;
+
+  bool set_;
 };
 
 }  // namespace mnian::core
