@@ -3,8 +3,10 @@
 // Context data for application or project lifetime.
 #pragma once
 
+#include <cassert>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "mncore/clock.h"
 #include "mncore/dir.h"
@@ -91,6 +93,17 @@ class iApp {
 
   virtual void Panic(const std::string&) = 0;
   virtual void Quit() = 0;
+
+
+  void ExecCommand(std::unique_ptr<iCommand>&& cmd) {
+    assert(cmd);
+
+    auto cmd_ptr = cmd.release();
+    main_.Exec(
+        [this, cmd_ptr] () {
+          project_.history().Exec(std::unique_ptr<iCommand>(cmd_ptr));
+        });
+  }
 
 
   const iClock& clock() {
