@@ -50,7 +50,7 @@ class MockDirItem : public core::iDirItem {
   static constexpr const char* kType = "Mock";
 
 
-  MockDirItem() : iDirItem(ActionList {}, kType) {
+  MockDirItem() : iDirItem(kType) {
   }
 
   MockDirItem(const MockDirItem&) = delete;

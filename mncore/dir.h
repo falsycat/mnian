@@ -13,7 +13,6 @@
 #include <utility>
 #include <vector>
 
-#include "mncore/action.h"
 #include "mncore/file.h"
 #include "mncore/node.h"
 #include "mncore/serialize.h"
@@ -94,7 +93,7 @@ class iDirItemObserver {
 
 
 // An interface of DirItem, which composes Dir.
-class iDirItem : public iActionable, public iPolymorphicSerializable {
+class iDirItem : public iPolymorphicSerializable {
  public:
   friend class iDirItemObserver;
   friend class Dir;
@@ -110,9 +109,7 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
 
 
   iDirItem() = delete;
-  iDirItem(ActionList&& actions, const char* type) :
-      iActionable(std::move(actions)),
-      iPolymorphicSerializable(type) {
+  explicit iDirItem(const char* type) : iPolymorphicSerializable(type) {
   }
   ~iDirItem() override {
     for (auto observer : observers_) {
@@ -180,7 +177,11 @@ class iDirItem : public iActionable, public iPolymorphicSerializable {
 // Dir is a DirItem which owns child DirItems.
 class Dir : public iDirItem {
  public:
+  static constexpr const char* kType = "mnian::core::Dir";
+
+
   using ItemMap = std::map<std::string, std::unique_ptr<iDirItem>>;
+
 
   // Deserializes a reference to Dir from path expressed in string array.
   // Returns nullptr if no such item is found.
@@ -191,11 +192,8 @@ class Dir : public iDirItem {
   static ItemMap DeserializeParam(iDeserializer*);
 
 
-  Dir() = delete;
-  explicit Dir(ActionList&& actions,
-               const char*  type  = "Dir",
-               ItemMap&&    items = {}) :
-      iDirItem(std::move(actions), type), items_(std::move(items)) {
+  explicit Dir(ItemMap&& items = {}) :
+      iDirItem(kType), items_(std::move(items)) {
     for (auto& item : items_) {
       const auto& name = item.first;
       auto        ptr  = item.second.get();
@@ -303,6 +301,9 @@ class Dir : public iDirItem {
 // FileRef is a DirItem which wraps iFile object.
 class FileRef : public iDirItem {
  public:
+  static constexpr const char* kType = "mnian::core::FileRef";
+
+
   enum Flag : uint16_t {
     kNone     = 0,
     kReadable = 1 << 0,
@@ -349,13 +350,9 @@ class FileRef : public iDirItem {
 
 
   FileRef() = delete;
-  FileRef(ActionList&& actions, const char* type, iFile* file, Flags flags) :
-      iDirItem(std::move(actions), type),
+  FileRef(iFile* file, Flags flags) : iDirItem(kType),
       file_(file), flags_(flags), observer_(this) {
     assert(file_);
-  }
-  FileRef(ActionList&& actions, iFile* file, Flags flags) :
-      FileRef(std::move(actions), "FileRef", file, flags) {
   }
 
   FileRef(const FileRef&) = delete;
@@ -434,6 +431,7 @@ class FileRef : public iDirItem {
 // NodeRef is a DirItem which wraps iNode object.
 class NodeRef : public iDirItem {
  public:
+  static constexpr const char* kType = "mnian::core::NodeRef";
   // Deserializes a reference to NodeRef from path expressed in string array.
   // Returns nullptr if no such item is found.
   static NodeRef* DeserializeRef(iDeserializer* des) {
@@ -442,19 +440,11 @@ class NodeRef : public iDirItem {
 
 
   NodeRef() = delete;
-  NodeRef(ActionList&&             actions,
-          const char*              type,
-          NodeStore*               store,
-          std::unique_ptr<iNode>&& node) :
-      iDirItem(std::move(actions), type),
+  NodeRef(NodeStore* store, std::unique_ptr<iNode>&& node) :
+      iDirItem(kType),
       store_(store), node_(store_->Add(std::move(node))), observer_(this) {
     assert(store_);
     assert(node_);
-  }
-  NodeRef(ActionList&&             actions,
-          NodeStore*               store,
-          std::unique_ptr<iNode>&& node) :
-      NodeRef(std::move(actions), "NodeRef", store, std::move(node)) {
   }
   ~NodeRef() {
     store_->Drop(node_);
