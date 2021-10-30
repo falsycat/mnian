@@ -45,12 +45,12 @@ std::vector<std::string> iDirItem::GeneratePath() const {
 }
 
 
-Dir::ItemMap Dir::DeserializeParam(iDeserializer* des) {
+std::unique_ptr<Dir> Dir::DeserializeParam(iDeserializer* des) {
   const auto size = des->size();
   if (!size) {
     des->logger().MNCORE_LOGGER_WARN("item list is not a map");
     des->LogLocation();
-    return {};
+    return nullptr;
   }
 
   ItemMap items;
@@ -78,7 +78,7 @@ Dir::ItemMap Dir::DeserializeParam(iDeserializer* des) {
     if (!item) continue;
     items[*name] = std::move(item);
   }
-  return items;
+  return std::make_unique<Dir>(std::move(items));
 }
 
 void Dir::SerializeParam(iSerializer* serializer) const {
@@ -114,6 +114,31 @@ std::optional<FileRef::Flag> FileRef::ParseFlag(char c) {
   }
 }
 
+std::unique_ptr<FileRef> FileRef::DeserializeParam(iDeserializer* des) {
+  des->Enter("url");
+  const auto url = des->value<std::string>();
+  des->Leave();
+
+  if (!url) {
+    des->logger().MNCORE_LOGGER_WARN("invalid url");
+    des->LogLocation();
+    return nullptr;
+  }
+
+  des->Enter("mode");
+  const auto flags = DeserializeFlags(des);
+  des->Leave();
+
+  if (!flags) {
+    des->logger().MNCORE_LOGGER_WARN("invalid flags");
+    des->LogLocation();
+    return nullptr;
+  }
+
+  auto f = des->app().fstore().Load(*url);
+  return std::make_unique<FileRef>(f, *flags);
+}
+
 void FileRef::SerializeParam(iSerializer* serializer) const {
   iSerializer::MapGuard map(serializer);
   map.Add("url", file_->url());
@@ -124,6 +149,21 @@ void FileRef::SerializeParam(iSerializer* serializer) const {
   map.Add("mode", mode);
 }
 
+
+std::unique_ptr<NodeRef> NodeRef::DeserializeParam(iDeserializer* des) {
+  const auto id = des->value<iNode::Id>();
+  if (!id) {
+    des->logger().MNCORE_LOGGER_WARN("expected integer ID");
+    des->LogLocation();
+    return nullptr;
+  }
+  if (!des->app().project().nstore().Find(*id)) {
+    des->logger().MNCORE_LOGGER_WARN("missing node");
+    des->LogLocation();
+    return nullptr;
+  }
+  return std::make_unique<NodeRef>(&des->app().project().nstore(), *id);
+}
 
 void NodeRef::SerializeParam(iSerializer* serializer) const {
   serializer->SerializeValue(static_cast<int64_t>(node_->id()));

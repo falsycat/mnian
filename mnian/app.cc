@@ -25,7 +25,7 @@ static constexpr const char* kFileName = "mnian.json";
 static constexpr const char* kInitialProject = R"({
   "project": {
     "root": {
-      "type" : "GenericDir",
+      "type" : "mnian::core::Dir",
       "param": {},
     },
     "nstore": [],

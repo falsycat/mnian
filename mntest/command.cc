@@ -52,7 +52,7 @@ TEST(SquashedCommand, ApplyAndRevertEmpty) {
 }
 
 TEST(DirCommand, Add) {
-  core::Dir dir({}, "");
+  core::Dir dir;
 
   auto item     = std::make_unique<::testing::StrictMock<MockDirItem>>();
   auto item_ptr = item.get();
@@ -80,7 +80,7 @@ TEST(DirCommand, Add) {
 }
 
 TEST(DirCommand, Remove) {
-  core::Dir dir({}, "");
+  core::Dir dir;
 
   auto item = dir.Add(
       "hello", std::make_unique<::testing::StrictMock<MockDirItem>>());
@@ -112,7 +112,7 @@ TEST(FileRefReplaceCommand, Replace) {
   ::testing::StrictMock<MockFile> f1("file://f1");
   ::testing::StrictMock<MockFile> f2("file://f2");
 
-  core::FileRef fref({}, "", &f1, core::FileRef::kReadable);
+  core::FileRef fref(&f1, core::FileRef::kReadable);
 
   core::FileRefReplaceCommand cmd("", &fref, &f2);
 
@@ -129,7 +129,7 @@ TEST(FileRefReplaceCommand, Replace) {
 TEST(FileRefFlagCommand, SetFlag) {
   ::testing::StrictMock<MockFile> f("file://f");
 
-  core::FileRef fref({}, "", &f, core::FileRef::kNone);
+  core::FileRef fref(&f, core::FileRef::kNone);
 
   // This command makes it unreadable.
   core::FileRefFlagCommand cmd("", &fref, core::FileRef::kReadable, false);
