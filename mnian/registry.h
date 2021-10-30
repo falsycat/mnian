@@ -6,7 +6,8 @@
 
 #include <Tracy.hpp>
 
-#include "mnian/dir.h"
+#include "mncore/dir.h"
+
 #include "mnian/widget_project_view.h"
 
 
@@ -16,9 +17,9 @@ void SetupDeserializerRegistry(core::DeserializerRegistry* reg) {
   ZoneScoped;
 
   // TODO(falsycat): replace with Deserialize method
-  reg->RegisterFactory<core::iDirItem>(
-      GenericDir::kType,
-      [](auto) { return std::make_unique<GenericDir>(); });
+  reg->RegisterType<core::iDirItem, core::Dir>();
+  reg->RegisterType<core::iDirItem, core::FileRef>();
+  reg->RegisterType<core::iDirItem, core::NodeRef>();
 
   reg->RegisterType<core::iWidget, ProjectViewWidget>();
 }

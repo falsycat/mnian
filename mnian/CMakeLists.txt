@@ -6,7 +6,6 @@ target_sources(mnian
   PRIVATE
     app.cc
     app.h
-    dir.h
     file.cc
     file.h
     lang.cc
