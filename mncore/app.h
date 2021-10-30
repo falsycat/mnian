@@ -95,14 +95,16 @@ class iApp {
   virtual void Quit() = 0;
 
 
+  void Exec(std::function<void(void)>&& f) {
+    main_.Exec(std::move(f));
+  }
   void ExecCommand(std::unique_ptr<iCommand>&& cmd) {
     assert(cmd);
 
     auto cmd_ptr = cmd.release();
-    main_.Exec(
-        [this, cmd_ptr] () {
-          project_.history().Exec(std::unique_ptr<iCommand>(cmd_ptr));
-        });
+    Exec([this, cmd_ptr] {
+           project_.history().Exec(std::unique_ptr<iCommand>(cmd_ptr));
+         });
   }
 
 
