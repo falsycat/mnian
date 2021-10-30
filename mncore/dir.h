@@ -125,6 +125,8 @@ class iDirItem : public iPolymorphicSerializable {
   iDirItem& operator=(iDirItem&&) = delete;
 
 
+  virtual std::unique_ptr<iDirItem> Clone() const = 0;
+
   virtual void Visit(iDirItemVisitor* visitor) = 0;
 
 
@@ -175,7 +177,7 @@ class iDirItem : public iPolymorphicSerializable {
 
 
 // Dir is a DirItem which owns child DirItems.
-class Dir : public iDirItem {
+class Dir final : public iDirItem {
  public:
   static constexpr const char* kType = "mnian::core::Dir";
 
@@ -189,7 +191,7 @@ class Dir : public iDirItem {
     return dynamic_cast<Dir*>(iDirItem::DeserializeRef(des));
   }
 
-  static ItemMap DeserializeParam(iDeserializer*);
+  static std::unique_ptr<Dir> DeserializeParam(iDeserializer*);
 
 
   explicit Dir(ItemMap&& items = {}) :
@@ -210,7 +212,15 @@ class Dir : public iDirItem {
   Dir& operator=(Dir&&) = delete;
 
 
-  void Visit(iDirItemVisitor* visitor) final {
+  std::unique_ptr<iDirItem> Clone() const override {
+    ItemMap clone_item;
+    for (auto& item : items_) {
+      clone_item[item.first] = item.second->Clone();
+    }
+    return std::make_unique<Dir>(std::move(clone_item));
+  }
+
+  void Visit(iDirItemVisitor* visitor) override {
     assert(visitor);
     visitor->VisitDir(this);
   }
@@ -299,7 +309,7 @@ class Dir : public iDirItem {
 
 
 // FileRef is a DirItem which wraps iFile object.
-class FileRef : public iDirItem {
+class FileRef final : public iDirItem {
  public:
   static constexpr const char* kType = "mnian::core::FileRef";
 
@@ -342,6 +352,8 @@ class FileRef : public iDirItem {
     return *ret;
   }
 
+  static std::unique_ptr<FileRef> DeserializeParam(iDeserializer* des);
+
   // Deserializes a reference to FileRef from path expressed in string array.
   // Returns nullptr if no such item is found.
   static FileRef* DeserializeRef(iDeserializer* des) {
@@ -362,7 +374,11 @@ class FileRef : public iDirItem {
   FileRef& operator=(FileRef&&) = delete;
 
 
-  void Visit(iDirItemVisitor* visitor) final {
+  std::unique_ptr<iDirItem> Clone() const override {
+    return std::make_unique<FileRef>(file_, flags_);
+  }
+
+  void Visit(iDirItemVisitor* visitor) override {
     visitor->VisitFile(this);
   }
 
@@ -429,20 +445,30 @@ class FileRef : public iDirItem {
 
 
 // NodeRef is a DirItem which wraps iNode object.
-class NodeRef : public iDirItem {
+class NodeRef final : public iDirItem {
  public:
   static constexpr const char* kType = "mnian::core::NodeRef";
+
+
   // Deserializes a reference to NodeRef from path expressed in string array.
   // Returns nullptr if no such item is found.
   static NodeRef* DeserializeRef(iDeserializer* des) {
     return dynamic_cast<NodeRef*>(iDirItem::DeserializeRef(des));
   }
 
+  static std::unique_ptr<NodeRef> DeserializeParam(iDeserializer* des);
+
 
   NodeRef() = delete;
   NodeRef(NodeStore* store, std::unique_ptr<iNode>&& node) :
       iDirItem(kType),
       store_(store), node_(store_->Add(std::move(node))), observer_(this) {
+    assert(store_);
+    assert(node_);
+  }
+  NodeRef(NodeStore* store, iNode::Id id) :
+      iDirItem(kType),
+      store_(store), node_(store_->Find(id)), observer_(this) {
     assert(store_);
     assert(node_);
   }
@@ -457,7 +483,11 @@ class NodeRef : public iDirItem {
   NodeRef& operator=(NodeRef&&) = delete;
 
 
-  void Visit(iDirItemVisitor* visitor) final {
+  std::unique_ptr<iDirItem> Clone() const override {
+    return std::make_unique<NodeRef>(store_, node_->Clone());
+  }
+
+  void Visit(iDirItemVisitor* visitor) override {
     visitor->VisitNode(this);
   }
 

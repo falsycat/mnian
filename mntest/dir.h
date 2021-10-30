@@ -5,6 +5,8 @@
 
 #include <gmock/gmock.h>
 
+#include <memory>
+
 
 namespace mnian::test {
 
@@ -60,6 +62,7 @@ class MockDirItem : public core::iDirItem {
   MockDirItem& operator=(MockDirItem&&) = delete;
 
 
+  MOCK_METHOD(std::unique_ptr<iDirItem>, Clone, (), (const override));
   MOCK_METHOD(void, Visit, (core::iDirItemVisitor*), (override));
   MOCK_METHOD(void, SerializeParam, (core::iSerializer*), (const, override));
 };
