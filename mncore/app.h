@@ -36,6 +36,8 @@ class iApp {
     Project& operator=(Project&&) = delete;
 
 
+    // Uses previous state of wstore and history if their deserialization is
+    // failed. So clear them in advance.
     bool Deserialize(iDeserializer*);
 
     void Serialize(iSerializer*) const override;

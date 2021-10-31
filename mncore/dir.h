@@ -139,6 +139,12 @@ class iDirItem : public iPolymorphicSerializable {
   }
 
 
+  bool IsAncestorOf(const iDirItem& other) const;
+  bool IsDescendantOf(const iDirItem& other) const {
+    return other.IsAncestorOf(*this);
+  }
+
+
   bool isRoot() const {
     return !parent_;
   }

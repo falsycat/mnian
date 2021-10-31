@@ -6,6 +6,7 @@
 
 #include <cassert>
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <unordered_map>
 
@@ -86,7 +87,6 @@ class WidgetStore final : public iSerializable {
     items_.clear();
   }
 
-
   void Update() {
     for (auto& item : items_) {
       item.second->Update();
@@ -101,6 +101,22 @@ class WidgetStore final : public iSerializable {
   }
 
 
+  template <typename T = iWidget>
+  T* DeserializeWidgetRef(iDeserializer* des) const {
+    static_assert(std::is_base_of<iWidget, T>::value);
+
+    const auto id = des->value<iWidget::Id>();
+    if (!id) {
+      des->logger().MNCORE_LOGGER_WARN("expected widget id");
+      des->LogLocation();
+      return nullptr;
+    }
+    return dynamic_cast<T*>(Find(*id));
+  }
+
+
+  // Returns true if the current store is properly replaced by new one,
+  // otherwise false and changes nothing.
   bool Deserialize(iDeserializer*);
 
   void Serialize(iSerializer*) const override;

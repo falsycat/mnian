@@ -224,6 +224,42 @@ TEST(Dir, FindPath) {
   ASSERT_FALSE(root.FindPath({"missing", "path"}));
 }
 
+TEST(Dir, IsAncestorOf) {
+  core::Dir root;
+
+  auto hello = root.Add("hello", std::make_unique<core::Dir>());
+  ASSERT_TRUE(hello);
+
+  auto world = root.Add("world", std::make_unique<core::Dir>());
+  ASSERT_TRUE(world);
+
+  ASSERT_TRUE(root.IsAncestorOf(*hello));
+  ASSERT_TRUE(root.IsAncestorOf(*world));
+
+  ASSERT_FALSE(hello->IsAncestorOf(*world));
+  ASSERT_FALSE(world->IsAncestorOf(*hello));
+
+  ASSERT_FALSE(hello->IsAncestorOf(root));
+  ASSERT_FALSE(world->IsAncestorOf(root));
+
+  ASSERT_TRUE(hello->IsDescendantOf(root));
+  ASSERT_TRUE(world->IsDescendantOf(root));
+
+  ASSERT_FALSE(hello->IsDescendantOf(*world));
+  ASSERT_FALSE(world->IsDescendantOf(*hello));
+
+  ASSERT_FALSE(root.IsDescendantOf(*hello));
+  ASSERT_FALSE(root.IsDescendantOf(*world));
+
+  ASSERT_TRUE(root.IsAncestorOf(root));
+  ASSERT_TRUE(hello->IsAncestorOf(*hello));
+  ASSERT_TRUE(world->IsAncestorOf(*world));
+
+  ASSERT_TRUE(root.IsDescendantOf(root));
+  ASSERT_TRUE(hello->IsDescendantOf(*hello));
+  ASSERT_TRUE(world->IsDescendantOf(*world));
+}
+
 
 TEST(FileRef, ParseFlags) {
   ASSERT_EQ(core::FileRef::ParseFlags("rrww"),

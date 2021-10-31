@@ -182,6 +182,20 @@ class DirCommand : public iCommand {
     }
   }
 
+
+  Verb verb() const {
+    return verb_;
+  }
+  Dir& dir() const {
+    return *dir_;
+  }
+  const std::string& name() const {
+    return name_;
+  }
+  iDirItem* item() const {
+    return item_.get();
+  }
+
  protected:
   DirCommand(const char* type, Param&& p) :
       iCommand(type),
