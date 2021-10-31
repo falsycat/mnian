@@ -90,6 +90,7 @@ target_sources(imgui
     "${imgui_SOURCE_DIR}/imgui_widgets.cpp"
     "${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp"
     "${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp"
+    "${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp"
   PUBLIC
     "${imgui_SOURCE_DIR}/imgui.h"
     "${imgui_SOURCE_DIR}/imstb_rectpack.h"
@@ -97,11 +98,13 @@ target_sources(imgui
     "${imgui_SOURCE_DIR}/imstb_truetype.h"
     "${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.h"
     "${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.h"
+    "${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.h"
 )
 target_include_directories(imgui SYSTEM
   PUBLIC
     "${imgui_SOURCE_DIR}"
     "${imgui_SOURCE_DIR}/backends"
+    "${imgui_SOURCE_DIR}/misc/cpp"
 )
 target_link_libraries(imgui
   PRIVATE glfw
