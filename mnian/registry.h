@@ -10,6 +10,7 @@
 
 #include "mnian/command.h"
 #include "mnian/widget_dir_tree.h"
+#include "mnian/widget_history_tree.h"
 
 
 namespace mnian {
@@ -27,6 +28,7 @@ void SetupDeserializerRegistry(core::DeserializerRegistry* reg) {
 
   // iWidget
   DirTreeWidget::Register(reg);
+  HistoryTreeWidget::Register(reg);
 }
 
 }  // namespace mnian

@@ -29,6 +29,8 @@ target_sources(mnian
     widget_dir_tree.cc
     widget_dir_tree.h
     widget_dir_tree_command.h
+    widget_history_tree.cc
+    widget_history_tree.h
     worker.cc
     worker.h
 )
