@@ -111,6 +111,22 @@ target_link_libraries(imgui
 )
 
 
+# ---- linalg.h ----
+# repository: https://github.com/sgorsten/linalg
+# license   : Unlicense
+
+FetchContent_Declare(
+  linalg_h
+  URL "https://github.com/sgorsten/linalg/archive/a3e87da35e32b781a4b6c01cdd5efbe7ae51c737.zip"
+)
+FetchContent_Populate(linalg_h)
+
+add_library(linalg.h INTERFACE)
+target_include_directories(linalg.h
+  INTERFACE "${linalg_h_SOURCE_DIR}"
+)
+
+
 # ---- MULAN ----
 # repository: https://github.com/falsycat/mulan
 # license   : WTFPLv2

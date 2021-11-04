@@ -42,6 +42,7 @@ target_link_libraries(mnian
     glfw
     imgui
     libmulan
+    linalg.h
     tracy
 
     $<$<PLATFORM_ID:Linux,Darwin>:pthread>
