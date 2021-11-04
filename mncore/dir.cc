@@ -51,7 +51,6 @@ bool iDirItem::IsAncestorOf(const iDirItem& other) const {
     if (itr->isRoot()) return false;
     itr = &itr->parent();
   }
-  return false;
 }
 
 
