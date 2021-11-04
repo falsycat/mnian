@@ -92,7 +92,7 @@ int main(int, char**) {
             kSize, &config, io.Fonts->GetGlyphRangesJapanese());
       }
       {  // FontAwesome
-        static constexpr float kSize = 16.f;
+        static constexpr float kSize = 13.5f;
 
         static const ImWchar range[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
 
@@ -100,6 +100,7 @@ int main(int, char**) {
         config.FontDataOwnedByAtlas = false;
         config.MergeMode            = true;
         config.GlyphMinAdvanceX     = kSize;
+        config.GlyphMaxAdvanceX     = kSize;
         snprintf(config.Name, sizeof(config.Name), "FontAwesome");
 
         io.Fonts->AddFontFromMemoryTTF(

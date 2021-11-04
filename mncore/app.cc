@@ -31,31 +31,38 @@ bool iApp::Project::Deserialize(iDeserializer* des) {
 
   // Deserializes nstore.
   des->Enter(std::string("nstore"));
-  if (!nstore_.Deserialize(des)) {
-    des->logger().MNCORE_LOGGER_ERROR("broken nstore has been dropped");
-    des->LogLocation();
-    nstore_.Clear();
-  }
+  const bool nstore = nstore_.Deserialize(des);
   des->Leave();
+
+  if (!nstore) {
+    des->logger().MNCORE_LOGGER_ERROR("nstore is broken");
+    des->LogLocation();
+    return false;
+  }
 
   // Deserializes wstore.
   des->Enter(std::string("wstore"));
-  if (!wstore_.Deserialize(des)) {
-    des->logger().MNCORE_LOGGER_WARN("broken wstore has been dropped");
-    des->LogLocation();
-    wstore_.Clear();
-  }
+  const bool wstore = wstore_.Deserialize(des);
   des->Leave();
+
+  if (!wstore) {
+    des->logger().MNCORE_LOGGER_WARN("wstore is broken");
+    des->LogLocation();
+
+    // Returns without loading history because History might refer missing
+    // widgets.
+    return true;
+  }
 
   // Deserializes history.
   des->Enter(std::string("history"));
-  if (!history_.Deserialize(des)) {
-    des->logger().MNCORE_LOGGER_WARN("broken history has been dropped");
-    des->LogLocation();
-    history_.Clear();
-  }
-  des->Leave();
+  const bool history = history_.Deserialize(des);
 
+  des->Leave();
+  if (!history) {
+    des->logger().MNCORE_LOGGER_WARN("history is broken");
+    des->LogLocation();
+  }
   return true;
 }
 

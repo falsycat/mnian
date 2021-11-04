@@ -44,6 +44,15 @@ std::vector<std::string> iDirItem::GeneratePath() const {
   return ret;
 }
 
+bool iDirItem::IsAncestorOf(const iDirItem& other) const {
+  auto itr = &other;
+  for (;;) {
+    if (itr == this) return true;
+    if (itr->isRoot()) return false;
+    itr = &itr->parent();
+  }
+}
+
 
 std::unique_ptr<Dir> Dir::DeserializeParam(iDeserializer* des) {
   const auto size = des->size();

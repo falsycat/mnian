@@ -83,7 +83,7 @@ bool History::Deserialize(iDeserializer* des) {
     return false;
   }
 
-  next_ = 0;
+  ItemId next = 0;
 
   ItemMap items;
   for (size_t i = 0; i < *size; ++i) {
@@ -95,8 +95,8 @@ bool History::Deserialize(iDeserializer* des) {
       continue;
     }
 
-    if (item->id_ >= next_) {
-      next_ = item->id_+1;
+    if (item->id_ >= next) {
+      next = item->id_+1;
     }
     items[item->id_] = std::move(item);
   }
@@ -119,6 +119,7 @@ bool History::Deserialize(iDeserializer* des) {
   items_ = std::move(items);
   root_  = root_itr->second.get();
   head_  = head_itr->second.get();
+  next_  = next;
 
   for (auto observer : observers_) {
     observer->ObserveDrop();

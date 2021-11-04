@@ -17,6 +17,9 @@ bool WidgetStore::Deserialize(iDeserializer* des) {
     return false;
   }
 
+  ItemMap items;
+  iWidget::Id next = 0;
+
   for (size_t i = 0; i < n; ++i) {
     iDeserializer::ScopeGuard _(des, *n-i-1);
 
@@ -29,7 +32,7 @@ bool WidgetStore::Deserialize(iDeserializer* des) {
       des->LogLocation();
       continue;
     }
-    if (items_.find(*id) != items_.end()) {
+    if (items.find(*id) != items.end()) {
       des->logger().MNCORE_LOGGER_WARN("id duplication");
       des->LogLocation();
       continue;
@@ -42,12 +45,18 @@ bool WidgetStore::Deserialize(iDeserializer* des) {
     if (!item) {
       continue;
     }
+    if (next <= *id) {
+      next = *id + 1;
+    }
 
     item->id_ = *id;
     item->ObserveNew();
 
-    items_[*id] = std::move(item);
+    items[*id] = std::move(item);
   }
+
+  items_ = std::move(items);
+  next_  = next;
   return true;
 }
 
