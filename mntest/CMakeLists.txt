@@ -29,6 +29,7 @@ target_sources(mntest
     node.h
     serialize.cc
     serialize.h
+    store.cc
     task.cc
     task.h
 )
