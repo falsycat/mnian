@@ -23,7 +23,8 @@ class DirTreeWidget : public ImGuiWidget {
 
   using ItemSet = std::unordered_set<core::iDirItem*>;
 
-  class DirCommand;
+  class DirAddCommand;
+  class DirRemoveCommand;
   class DirMoveCommand;
 
 

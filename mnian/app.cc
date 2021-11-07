@@ -8,6 +8,7 @@
 #include <filesystem>  // NOLINT(build/c++11)
 #include <fstream>
 #include <sstream>
+#include <utility>
 
 #include <Tracy.hpp>
 
@@ -59,6 +60,9 @@ App::App(GLFWwindow* window, const core::DeserializerRegistry* reg) :
       Panic(_("failed to open file"));
       return;
     }
+
+    // clear all of stores
+    stores() = ObjectStoreSet();
 
     auto des =
         core::iDeserializer::CreateJson(this, &logger(), &registry(), &file);
