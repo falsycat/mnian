@@ -9,7 +9,7 @@ endif()
 
 # ---- fontawesome icons ----
 add_library(fontawesome INTERFACE)
-target_include_directories(fontawesome INTERFACE .)
+target_include_directories(fontawesome SYSTEM INTERFACE .)
 target_sources(fontawesome INTERFACE fontawesome.h)
 
 
@@ -122,7 +122,7 @@ FetchContent_Declare(
 FetchContent_Populate(linalg_h)
 
 add_library(linalg.h INTERFACE)
-target_include_directories(linalg.h
+target_include_directories(linalg.h SYSTEM
   INTERFACE "${linalg_h_SOURCE_DIR}"
 )
 
@@ -150,7 +150,7 @@ FetchContent_Declare(
 FetchContent_Populate(rapidjson)
 
 add_library(rapidjson INTERFACE)
-target_include_directories(rapidjson
+target_include_directories(rapidjson SYSTEM
   INTERFACE "${rapidjson_SOURCE_DIR}/include"
 )
 
