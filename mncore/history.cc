@@ -2,6 +2,7 @@
 #include "mncore/history.h"
 
 #include <algorithm>
+#include <queue>
 
 
 namespace mnian::core {
@@ -130,16 +131,26 @@ bool History::Deserialize(iDeserializer* des) {
 void History::Serialize(iSerializer* serial) const {
   assert(serial);
 
-  iSerializer::ArrayGuard items(serial);
-  iSerializer::MapGuard   map(serial);
+  std::queue<HistoryItem*> q;
+  q.push(root_);
 
+  iSerializer::ArrayGuard items(serial);
+  while (!q.empty()) {
+    auto item = q.front();
+    q.pop();
+
+    items.Add(item);
+
+    const auto& branch = item->branch();
+    for (size_t i = 0; i < branch.size(); ++i) {
+      q.push(branch[i]);
+    }
+  }
+
+  iSerializer::MapGuard map(serial);
   map.Add("items", &items);
   map.Add("root", root_->id_);
   map.Add("head", head_->id_);
-
-  for (auto& item : items_) {
-    items.Add(item.second.get());
-  }
 }
 
 HistoryItem* History::CreateItem(std::unique_ptr<iCommand>&& command) {
