@@ -51,15 +51,16 @@ TEST(SquashedCommand, ApplyAndRevertEmpty) {
   squashed.Revert();
 }
 
-TEST(DirCommand, Add) {
-  core::Dir dir;
+TEST(DirAddCommand, ApplyAndRevert) {
+  core::ObjectStore<core::iDirItem> store;
+  core::Dir dir(&store);
 
-  auto item     = std::make_unique<::testing::StrictMock<MockDirItem>>();
+  auto item = std::make_unique<::testing::StrictMock<MockDirItem>>(&store);
   auto item_ptr = item.get();
 
   ::testing::StrictMock<MockDirItemObserver> obs(item.get());
 
-  core::DirCommand cmd("", &dir, "hello", std::move(item));
+  core::DirAddCommand cmd("", &dir, "hello", std::move(item));
   {
     EXPECT_CALL(obs, ObserveAdd());
     cmd.Apply();
@@ -79,13 +80,16 @@ TEST(DirCommand, Add) {
   ASSERT_EQ(dir.Find("hello"), item_ptr);
 }
 
-TEST(DirCommand, Remove) {
-  core::Dir dir;
+TEST(DirRemoveCommand, ApplyAndRevert) {
+  core::ObjectStore<core::iDirItem> store;
+  core::Dir dir(&store, {});
 
   auto item = dir.Add(
-      "hello", std::make_unique<::testing::StrictMock<MockDirItem>>());
+      "hello",
+      std::make_unique<::testing::StrictMock<MockDirItem>>(
+          core::iDirItem::Tag(&store)));
 
-  core::DirCommand cmd("", &dir, "hello");
+  core::DirRemoveCommand cmd("", &dir, "hello");
 
   ::testing::StrictMock<MockDirItemObserver> obs(item);
 
@@ -112,7 +116,8 @@ TEST(FileRefReplaceCommand, Replace) {
   ::testing::StrictMock<MockFile> f1("file://f1");
   ::testing::StrictMock<MockFile> f2("file://f2");
 
-  core::FileRef fref(&f1, core::FileRef::kReadable);
+  core::ObjectStore<core::iDirItem> store;
+  core::FileRef fref(&store, &f1, core::FileRef::kReadable);
 
   core::FileRefReplaceCommand cmd("", &fref, &f2);
 
@@ -129,7 +134,8 @@ TEST(FileRefReplaceCommand, Replace) {
 TEST(FileRefFlagCommand, SetFlag) {
   ::testing::StrictMock<MockFile> f("file://f");
 
-  core::FileRef fref(&f, core::FileRef::kNone);
+  core::ObjectStore<core::iDirItem> store;
+  core::FileRef fref(&store, &f, core::FileRef::kNone);
 
   // This command makes it unreadable.
   core::FileRefFlagCommand cmd("", &fref, core::FileRef::kReadable, false);

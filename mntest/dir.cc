@@ -31,7 +31,8 @@ TEST(iDirItem, ValidateName) {
 
 
 TEST(Dir, Visit) {
-  core::Dir dir;
+  core::iDirItem::Store store;
+  core::Dir dir(&store);
 
   MockDirItemVisitor visitor;
   EXPECT_CALL(visitor, VisitDir(&dir));
@@ -41,14 +42,15 @@ TEST(Dir, Visit) {
 TEST(Dir, Add) {
   static constexpr size_t kCount = 100;
 
-  core::Dir dir;
+  core::iDirItem::Store store;
+  core::Dir dir(&store);
 
   ::testing::StrictMock<MockDirItemObserver> observer(&dir);
   EXPECT_CALL(observer, ObserveUpdate()).Times(kCount);
 
   std::vector<core::Dir*> subdirs;
   for (size_t i = 0; i < kCount; ++i) {
-    auto subdir = std::make_unique<core::Dir>();
+    auto subdir = std::make_unique<core::Dir>(&store);
     ASSERT_TRUE(subdir);
 
     auto ptr = subdir.get();
@@ -69,14 +71,15 @@ TEST(Dir, Remove) {
   std::mt19937 rnd(
       static_cast<uint32_t>(::testing::UnitTest::GetInstance()->random_seed()));
 
-  core::Dir dir;
+  core::iDirItem::Store store;
+  core::Dir dir(&store);
 
   ::testing::StrictMock<MockDirItemObserver> observer(&dir);
   EXPECT_CALL(observer, ObserveUpdate()).Times(kCount*2);
 
   std::vector<core::Dir*> subdirs;
   for (size_t i = 0; i < kCount; ++i) {
-    auto subdir = std::make_unique<core::Dir>();
+    auto subdir = std::make_unique<core::Dir>(&store);
     ASSERT_TRUE(subdir);
     subdirs.push_back(subdir.get());
     dir.Add(std::to_string(i), std::move(subdir));
@@ -110,11 +113,13 @@ TEST(Dir, Move) {
   std::mt19937 rnd(
       static_cast<uint32_t>(::testing::UnitTest::GetInstance()->random_seed()));
 
-  core::Dir src;
+  core::iDirItem::Store store;
+
+  core::Dir src(&store);
   ::testing::StrictMock<MockDirItemObserver> src_observer(&src);
   EXPECT_CALL(src_observer, ObserveUpdate()).Times(kCount*2);
 
-  core::Dir dst;
+  core::Dir dst(&store);
   ::testing::StrictMock<MockDirItemObserver> dst_observer(&dst);
   EXPECT_CALL(dst_observer, ObserveUpdate()).Times(kCount);
 
@@ -122,7 +127,7 @@ TEST(Dir, Move) {
       sub_observers;
 
   for (size_t i = 0; i < kCount; ++i) {
-    auto subdir = std::make_unique<core::Dir>();
+    auto subdir = std::make_unique<core::Dir>(&store);
     ASSERT_TRUE(subdir);
 
     auto sub_observer = std::make_unique
@@ -155,11 +160,12 @@ TEST(Dir, Find) {
     "helloworld", "hello", "world", "hellworld",
   };
 
-  core::Dir dir;
+  core::iDirItem::Store store;
+  core::Dir dir(&store);
 
   std::map<std::string, core::Dir*> subdirs;
   for (auto& name : kNames) {
-    auto subdir = std::make_unique<core::Dir>();
+    auto subdir = std::make_unique<core::Dir>(&store);
     ASSERT_TRUE(subdir);
     subdirs[name] = subdir.get();
     dir.Add(name, std::move(subdir));
@@ -172,11 +178,12 @@ TEST(Dir, Find) {
 TEST(Dir, GeneratePath) {
   static const std::vector<std::string> kNames = {"a", "b", "c", "d"};
 
-  core::Dir root;
+  core::iDirItem::Store store;
+  core::Dir root(&store);
 
   std::vector<core::Dir*> dirs = {&root};
   for (auto& name : kNames) {
-    auto dir = std::make_unique<core::Dir>();
+    auto dir = std::make_unique<core::Dir>(&store);
     dirs.push_back(dir.get());
     dirs[dirs.size()-2]->Add(name, std::move(dir));
   }
@@ -192,11 +199,12 @@ TEST(Dir, GeneratePath) {
 TEST(Dir, FindPath) {
   static const std::vector<std::string> kNames = {"a", "b", "c", "d"};
 
-  core::Dir root;
+  core::iDirItem::Store store;
+  core::Dir root(&store);
 
   std::vector<core::Dir*> dirs = {&root};
   for (auto& name : kNames) {
-    auto dir = std::make_unique<core::Dir>();
+    auto dir = std::make_unique<core::Dir>(&store);
     dirs.push_back(dir.get());
     dirs[dirs.size()-2]->Add(name, std::move(dir));
   }
@@ -225,12 +233,13 @@ TEST(Dir, FindPath) {
 }
 
 TEST(Dir, IsAncestorOf) {
-  core::Dir root;
+  core::iDirItem::Store store;
+  core::Dir root(&store);
 
-  auto hello = root.Add("hello", std::make_unique<core::Dir>());
+  auto hello = root.Add("hello", std::make_unique<core::Dir>(&store));
   ASSERT_TRUE(hello);
 
-  auto world = root.Add("world", std::make_unique<core::Dir>());
+  auto world = root.Add("world", std::make_unique<core::Dir>(&store));
   ASSERT_TRUE(world);
 
   ASSERT_TRUE(root.IsAncestorOf(*hello));
@@ -285,7 +294,8 @@ TEST(FileRef, ParseFlags) {
 TEST(FileRef, Visit) {
   MockFile file("test");
 
-  core::FileRef fref(&file, 0);
+  core::iDirItem::Store store;
+  core::FileRef fref(&store, &file, 0);
 
   ::testing::StrictMock<MockDirItemVisitor> visitor;
   EXPECT_CALL(visitor, VisitFile(&fref));
@@ -295,7 +305,8 @@ TEST(FileRef, Visit) {
 TEST(FileRef, EntityUpdate) {
   MockFile file("test");
 
-  core::FileRef fref(&file, 0);
+  core::iDirItem::Store store;
+  core::FileRef fref(&store, &file, 0);
 
   ::testing::StrictMock<MockDirItemObserver> observer(&fref);
   EXPECT_CALL(observer, ObserveUpdate());
@@ -306,7 +317,8 @@ TEST(FileRef, ReplaceEntity) {
   MockFile file1("test");
   MockFile file2("test");
 
-  core::FileRef fref(&file1, 0);
+  core::iDirItem::Store store;
+  core::FileRef fref(&store, &file1, 0);
   ASSERT_EQ(&fref.entity(), &file1);
 
   ::testing::StrictMock<MockDirItemObserver> observer(&fref);
@@ -319,7 +331,8 @@ TEST(FileRef, ReplaceEntity) {
 TEST(FileRef, ModifyFlags) {
   MockFile file("test");
 
-  core::FileRef fref(&file, 0);
+  core::iDirItem::Store store;
+  core::FileRef fref(&store, &file, 0);
   ASSERT_FALSE(fref.readable());
   ASSERT_FALSE(fref.writable());
 
@@ -353,7 +366,7 @@ TEST(FileRef, ModifyFlags) {
 
 
 TEST(NodeRef, Visit) {
-  core::NodeStore store;
+  core::iDirItem::Store store;
   core::NodeRef nref(&store, std::make_unique<MockNode>());
 
   ::testing::StrictMock<MockDirItemVisitor> visitor;
@@ -362,7 +375,7 @@ TEST(NodeRef, Visit) {
 }
 
 TEST(NodeRef, EntityUpdate) {
-  core::NodeStore store;
+  core::iDirItem::Store store;
 
   auto node     = std::make_unique<MockNode>();
   auto node_ptr = node.get();
@@ -375,11 +388,14 @@ TEST(NodeRef, EntityUpdate) {
 
 
 TEST(iDirItemObserver, LosingTarget) {
-  auto dir = std::make_unique<core::Dir>();
+  core::iDirItem::Store store;
+
+  auto dir = std::make_unique<core::Dir>(&store);
   ASSERT_TRUE(dir);
 
   MockFile file("test");
-  auto fref = std::make_unique<core::FileRef>(&file, core::FileRef::kNone);
+  auto fref =
+      std::make_unique<core::FileRef>(&store, &file, core::FileRef::kNone);
   ASSERT_TRUE(fref);
 
   ::testing::StrictMock<MockDirItemObserver> observer(fref.get());
@@ -392,11 +408,14 @@ TEST(iDirItemObserver, LosingTarget) {
 }
 
 TEST(iDirItemObserver, Quitting) {
-  auto dir = std::make_unique<core::Dir>();
+  core::iDirItem::Store store;
+
+  auto dir = std::make_unique<core::Dir>(&store);
   ASSERT_TRUE(dir);
 
   MockFile file("test");
-  auto fref = std::make_unique<core::FileRef>(&file, core::FileRef::kNone);
+  auto fref =
+      std::make_unique<core::FileRef>(&store, &file, core::FileRef::kNone);
   ASSERT_TRUE(fref);
 
   {

@@ -131,94 +131,121 @@ class SquashedCommand : public iCommand {
 };
 
 
-// DirCommand is a command to modify Dir.
-class DirCommand : public iCommand {
+// DirAddCommand is a command to add new item to an existing Dir.
+class DirAddCommand : public iCommand {
  public:
-  enum Verb {
-    kAdd,
-    kRemove,
-  };
-
-  using Param = std::tuple<
-      Verb, Dir*, std::string, std::unique_ptr<iDirItem>>;
+  using Param = std::tuple<Dir*, std::string, std::unique_ptr<iDirItem>>;
 
 
   static std::optional<Param> DeserializeParam(iDeserializer*);
 
 
-  DirCommand() = delete;
-  DirCommand(const char*                 type,
-             Dir*                        dir,
-             const std::string&          name,
-             std::unique_ptr<iDirItem>&& item) :
-      DirCommand(type, {kAdd, dir, name, std::move(item)}) {
-    assert(dir_);
-    assert(!iDirItem::ValidateName(name_));
-    assert(item_);
+  DirAddCommand() = delete;
+  DirAddCommand(const char* type, Param&& p) :
+      iCommand(type),
+      dir_(std::get<0>(p)),
+      name_(std::get<1>(p)),
+      item_(std::move(std::get<2>(p))) {
   }
-  DirCommand(const char* type, Dir* dir, const std::string& name) :
-      DirCommand(type, {kRemove, dir, name, nullptr}) {
-    assert(dir_);
-    assert(!iDirItem::ValidateName(name_));
+  DirAddCommand(const char*                 type,
+                Dir*                        dir,
+                std::string                 name,
+                std::unique_ptr<iDirItem>&& item) :
+      DirAddCommand(type, {dir, name, std::move(item)}) {
   }
 
-  DirCommand(const DirCommand&) = delete;
-  DirCommand(DirCommand&&) = delete;
+  DirAddCommand(const DirAddCommand&) = delete;
+  DirAddCommand(DirAddCommand&&) = delete;
 
-  DirCommand& operator=(const DirCommand&) = delete;
-  DirCommand& operator=(DirCommand&&) = delete;
+  DirAddCommand& operator=(const DirAddCommand&) = delete;
+  DirAddCommand& operator=(DirAddCommand&&) = delete;
 
 
   void Apply() override {
-    switch (verb_) {
-    case kAdd:    Add();    break;
-    case kRemove: Remove(); break;
-    }
+    assert(item_);
+    dir_->Add(name_, std::move(item_));
   }
   void Revert() override {
-    switch (verb_) {
-    case kAdd:    Remove(); break;
-    case kRemove: Add();    break;
-    }
+    assert(!item_);
+    item_ = dir_->Remove(name_);
+    assert(item_);
   }
 
 
-  Verb verb() const {
-    return verb_;
-  }
   Dir& dir() const {
     return *dir_;
   }
   const std::string& name() const {
     return name_;
   }
-  iDirItem* item() const {
+  const iDirItem* item() const {
     return item_.get();
   }
 
  protected:
-  DirCommand(const char* type, Param&& p) :
-      iCommand(type),
-      verb_(std::get<0>(p)),
-      dir_(std::get<1>(p)),
-      name_(std::get<2>(p)),
-      item_(std::move(std::get<3>(p))) {
-  }
-
-
-  void SerializeParam(iSerializer*) const override;
+  void SerializeParam(iSerializer* serial) const override;
 
  private:
-  void Add() {
+  Dir* dir_;
+
+  std::string name_;
+
+  std::unique_ptr<iDirItem> item_;
+};
+
+
+// DirRemoveCommand is a command to remove the item from an existing Dir.
+class DirRemoveCommand : public iCommand {
+ public:
+  using Param = std::tuple<Dir*, std::string, std::unique_ptr<iDirItem>>;
+
+
+  static std::optional<Param> DeserializeParam(iDeserializer*);
+
+
+  DirRemoveCommand() = delete;
+  DirRemoveCommand(const char* type, Param&& p) :
+      iCommand(type),
+      dir_(std::get<0>(p)),
+      name_(std::get<1>(p)),
+      item_(std::move(std::get<2>(p))) {
+  }
+  DirRemoveCommand(const char* type, Dir* dir, std::string name) :
+      DirRemoveCommand(type, {dir, name, nullptr}) {
+  }
+
+  DirRemoveCommand(const DirRemoveCommand&) = delete;
+  DirRemoveCommand(DirRemoveCommand&&) = delete;
+
+  DirRemoveCommand& operator=(const DirRemoveCommand&) = delete;
+  DirRemoveCommand& operator=(DirRemoveCommand&&) = delete;
+
+
+  void Apply() override {
+    assert(!item_);
+    item_ = dir_->Remove(name_);
+    assert(item_);
+  }
+  void Revert() override {
+    assert(item_);
     dir_->Add(name_, std::move(item_));
   }
-  void Remove() {
-    item_ = dir_->Remove(name_);
+
+
+  Dir& dir() const {
+    return *dir_;
+  }
+  const std::string& name() const {
+    return name_;
+  }
+  const iDirItem* item() const {
+    return item_.get();
   }
 
+ protected:
+  void SerializeParam(iSerializer* serial) const override;
 
-  const Verb verb_;
-
+ private:
   Dir* dir_;
 
   std::string name_;
@@ -261,6 +288,20 @@ class DirMoveCommand : public iCommand {
   }
   void Revert() override {
     dst_->Move(dst_name_, src_, src_name_);
+  }
+
+
+  Dir& src() const {
+    return *src_;
+  }
+  const std::string& srcName() const {
+    return src_name_;
+  }
+  Dir& dst() const {
+    return *dst_;
+  }
+  const std::string& dstName() const {
+    return dst_name_;
   }
 
  protected:
