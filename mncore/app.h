@@ -51,7 +51,9 @@ class iApp {
   class Project final : public iSerializable {
    public:
     Project() = delete;
-    explicit Project(const iClock* clock) : history_(clock) {
+    explicit Project(const iClock*               clock,
+                     std::unique_ptr<iCommand>&& origin = nullptr) :
+        history_(clock, std::move(origin)) {
     }
 
     Project(const Project&) = delete;
@@ -91,12 +93,13 @@ class iApp {
   iApp(const iClock*               clock,
        const DeserializerRegistry* reg,
        iLogger*                    logger,
-       iFileStore*                 fstore) :
+       iFileStore*                 fstore,
+       std::unique_ptr<iCommand>&& origin = nullptr) :
       clock_(clock),
       reg_(reg),
       logger_(logger),
       fstore_(fstore),
-      project_(clock_) {
+      project_(clock_, std::move(origin)) {
     assert(clock_);
     assert(reg_);
     assert(logger_);

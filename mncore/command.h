@@ -30,13 +30,14 @@ class iCommand : public iPolymorphicSerializable {
   iCommand& operator=(iCommand&&) = delete;
 
 
-  // It's guaranteed that Apply() and Revert() must be called in the following
-  // order:
+  // It's guaranteed that Apply() and Revert() are called in the following
+  // sequence:
   //   Apply() -> Revert() -> Apply() -> Revert() -> ...
-  virtual void Apply() = 0;
-  virtual void Revert() = 0;
+  virtual bool Apply()  = 0;
+  virtual bool Revert() = 0;
 
-  virtual std::string description() const {
+
+  virtual std::string GetDescription() const {
     return "(no description)";
   }
 };
@@ -56,13 +57,15 @@ class NullCommand : public iCommand {
   NullCommand& operator=(NullCommand&&) = delete;
 
 
-  void Apply() override {
+  bool Apply() override {
+    return true;
   }
-  void Revert() override {
+  bool Revert() override {
+    return true;
   }
 
 
-  std::string description() const override {
+  std::string GetDescription() const override {
     return desc_;
   }
 
@@ -95,21 +98,35 @@ class SquashedCommand : public iCommand {
   SquashedCommand& operator=(SquashedCommand&&) = delete;
 
 
-  void Apply() override {
-    for (auto& cmd : commands_) {
-      cmd->Apply();
+  bool Apply() override {
+    for (intmax_t i = 0; static_cast<size_t>(i) < commands_.size(); ++i) {
+      if (!commands_[static_cast<size_t>(i)]->Apply()) {
+        for (; i >= 0; --i) {
+          if (!commands_[static_cast<size_t>(i)]->Revert()) {
+            assert(false);  // cannot recover
+          }
+        }
+        return false;
+      }
     }
+    return true;
   }
-  void Revert() override {
-    auto itr = commands_.end();
-    while (itr > commands_.begin()) {
-      --itr;
-      (*itr)->Revert();
+  bool Revert() override {
+    for (intmax_t i = static_cast<intmax_t>(commands_.size())-1; i >= 0; --i) {
+      if (!commands_[static_cast<size_t>(i)]->Revert()) {
+        for (; static_cast<size_t>(i) < commands_.size(); ++i) {
+          if (!commands_[static_cast<size_t>(i)]->Apply()) {
+            assert(false);  // cannot recover
+          }
+        }
+        return false;
+      }
     }
+    return true;
   }
 
 
-  std::string description() const override {
+  std::string GetDescription() const override {
     return "(squashed command)";
   }
 
@@ -125,8 +142,6 @@ class SquashedCommand : public iCommand {
   void SerializeParam(iSerializer* serial) const override;
 
  private:
-  std::string description_;
-
   CommandList commands_;
 };
 
@@ -161,14 +176,16 @@ class DirAddCommand : public iCommand {
   DirAddCommand& operator=(DirAddCommand&&) = delete;
 
 
-  void Apply() override {
-    assert(item_);
+  bool Apply() override {
+    if (!item_ || dir_->Find(name_)) return false;
     dir_->Add(name_, std::move(item_));
+    return true;
   }
-  void Revert() override {
+  bool Revert() override {
     assert(!item_);
+    if (item_) return false;
     item_ = dir_->Remove(name_);
-    assert(item_);
+    return !!item_;
   }
 
 
@@ -221,14 +238,15 @@ class DirRemoveCommand : public iCommand {
   DirRemoveCommand& operator=(DirRemoveCommand&&) = delete;
 
 
-  void Apply() override {
-    assert(!item_);
+  bool Apply() override {
+    if (item_) return false;
     item_ = dir_->Remove(name_);
-    assert(item_);
+    return !!item_;
   }
-  void Revert() override {
-    assert(item_);
+  bool Revert() override {
+    if (!item_ || dir_->Find(name_)) return false;
     dir_->Add(name_, std::move(item_));
+    return true;
   }
 
 
@@ -283,11 +301,15 @@ class DirMoveCommand : public iCommand {
   DirMoveCommand& operator=(DirMoveCommand&&) = delete;
 
 
-  void Apply() override {
+  bool Apply() override {
+    if (!src_->Find(src_name_) || dst_->Find(dst_name_)) return false;
     src_->Move(src_name_, dst_, dst_name_);
+    return true;
   }
-  void Revert() override {
+  bool Revert() override {
+    if (!dst_->Find(dst_name_) || src_->Find(src_name_)) return false;
     dst_->Move(dst_name_, src_, src_name_);
+    return true;
   }
 
 
@@ -348,11 +370,13 @@ class FileRefReplaceCommand : public iCommand {
   FileRefReplaceCommand& operator=(FileRefReplaceCommand&&) = delete;
 
 
-  void Apply() override {
+  bool Apply() override {
     Swap();
+    return true;
   }
-  void Revert() override {
+  bool Revert() override {
     Swap();
+    return true;
   }
 
  protected:
@@ -403,11 +427,13 @@ class FileRefFlagCommand : public iCommand {
   FileRefFlagCommand& operator=(FileRefFlagCommand&&) = delete;
 
 
-  void Apply() override {
+  bool Apply() override {
     set_? target_->SetFlag(flag_): target_->UnsetFlag(flag_);
+    return true;
   }
-  void Revert() override {
+  bool Revert() override {
     set_? target_->UnsetFlag(flag_): target_->SetFlag(flag_);
+    return true;
   }
 
  protected:

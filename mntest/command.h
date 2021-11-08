@@ -25,12 +25,12 @@ class MockCommand : public core::iCommand {
   MockCommand& operator=(MockCommand&&) = delete;
 
 
-  MOCK_METHOD(void, Apply, (), (override));
-  MOCK_METHOD(void, Revert, (), (override));
+  MOCK_METHOD(bool, Apply, (), (override));
+  MOCK_METHOD(bool, Revert, (), (override));
 
   MOCK_METHOD(void, SerializeParam, (core::iSerializer*), (const override));
 
-  MOCK_METHOD(std::string, description, (), (const override));
+  MOCK_METHOD(std::string, GetDescription, (), (const override));
 };
 
 }  // namespace mnian::test

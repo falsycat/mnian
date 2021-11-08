@@ -22,7 +22,6 @@ target_sources(mntest
     file.cc
     file.h
     history.cc
-    history.h
     logger.cc
     logger.h
     node.h

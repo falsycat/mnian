@@ -27,12 +27,16 @@ TEST(SquashedCommand, ApplyAndRevert) {
 
   ::testing::Sequence seq;
   for (auto& cmd : cmds) {
-    EXPECT_CALL(*cmd, Apply()).InSequence(seq);
+    EXPECT_CALL(*cmd, Apply()).
+        InSequence(seq).
+        WillOnce(::testing::Return(true));
   }
   auto itr = cmds.end();
   while (itr > cmds.begin()) {
     --itr;
-    EXPECT_CALL(**itr, Revert()).InSequence(seq);
+    EXPECT_CALL(**itr, Revert()).
+        InSequence(seq).
+        WillOnce(::testing::Return(true));
   }
 
   std::vector<std::unique_ptr<core::iCommand>> cmds_;
@@ -41,14 +45,14 @@ TEST(SquashedCommand, ApplyAndRevert) {
   }
 
   core::SquashedCommand squashed("", std::move(cmds_));
-  squashed.Apply();
-  squashed.Revert();
+  ASSERT_TRUE(squashed.Apply());
+  ASSERT_TRUE(squashed.Revert());
 }
 
 TEST(SquashedCommand, ApplyAndRevertEmpty) {
   core::SquashedCommand squashed("", {});
-  squashed.Apply();
-  squashed.Revert();
+  ASSERT_TRUE(squashed.Apply());
+  ASSERT_TRUE(squashed.Revert());
 }
 
 TEST(DirAddCommand, ApplyAndRevert) {
@@ -63,19 +67,19 @@ TEST(DirAddCommand, ApplyAndRevert) {
   core::DirAddCommand cmd("", &dir, "hello", std::move(item));
   {
     EXPECT_CALL(obs, ObserveAdd());
-    cmd.Apply();
+    ASSERT_TRUE(cmd.Apply());
   }
   ASSERT_EQ(dir.Find("hello"), item_ptr);
 
   {
     EXPECT_CALL(obs, ObserveRemove());
-    cmd.Revert();
+    ASSERT_TRUE(cmd.Revert());
   }
   ASSERT_FALSE(dir.Find("hello"));
 
   {
     EXPECT_CALL(obs, ObserveAdd());
-    cmd.Apply();
+    ASSERT_TRUE(cmd.Apply());
   }
   ASSERT_EQ(dir.Find("hello"), item_ptr);
 }
@@ -95,19 +99,19 @@ TEST(DirRemoveCommand, ApplyAndRevert) {
 
   {
     EXPECT_CALL(obs, ObserveRemove());
-    cmd.Apply();
+    ASSERT_TRUE(cmd.Apply());
   }
   ASSERT_FALSE(dir.Find("hello"));
 
   {
     EXPECT_CALL(obs, ObserveAdd());
-    cmd.Revert();
+    ASSERT_TRUE(cmd.Revert());
   }
   ASSERT_EQ(dir.Find("hello"), item);
 
   {
     EXPECT_CALL(obs, ObserveRemove());
-    cmd.Apply();
+    ASSERT_TRUE(cmd.Apply());
   }
   ASSERT_FALSE(dir.Find("hello"));
 }
@@ -121,13 +125,13 @@ TEST(FileRefReplaceCommand, Replace) {
 
   core::FileRefReplaceCommand cmd("", &fref, &f2);
 
-  cmd.Apply();
+  ASSERT_TRUE(cmd.Apply());
   ASSERT_EQ(&fref.entity(), &f2);
 
-  cmd.Revert();
+  ASSERT_TRUE(cmd.Revert());
   ASSERT_EQ(&fref.entity(), &f1);
 
-  cmd.Apply();
+  ASSERT_TRUE(cmd.Apply());
   ASSERT_EQ(&fref.entity(), &f2);
 }
 
@@ -140,13 +144,13 @@ TEST(FileRefFlagCommand, SetFlag) {
   // This command makes it unreadable.
   core::FileRefFlagCommand cmd("", &fref, core::FileRef::kReadable, false);
 
-  cmd.Apply();
+  ASSERT_TRUE(cmd.Apply());
   ASSERT_FALSE(fref.readable());
 
-  cmd.Revert();
+  ASSERT_TRUE(cmd.Revert());
   ASSERT_TRUE(fref.readable());
 
-  cmd.Apply();
+  ASSERT_TRUE(cmd.Apply());
   ASSERT_FALSE(fref.readable());
 }
 

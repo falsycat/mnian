@@ -6,67 +6,201 @@
 
 #include <cassert>
 #include <memory>
-#include <string>
-#include <map>
+#include <optional>
+#include <stack>
 #include <utility>
 #include <vector>
 
 #include "mncore/clock.h"
 #include "mncore/command.h"
+#include "mncore/serialize.h"
 
 
 namespace mnian::core {
 
-class History;
-class HistoryItem;
-
-
-class iHistoryObserver {
- public:
-  iHistoryObserver() = delete;
-  inline explicit iHistoryObserver(History* target);
-  inline virtual ~iHistoryObserver();
-
-  iHistoryObserver(const iHistoryObserver&) = delete;
-  iHistoryObserver(iHistoryObserver&&) = delete;
-
-  iHistoryObserver& operator=(const iHistoryObserver&) = delete;
-  iHistoryObserver& operator=(iHistoryObserver&&) = delete;
-
-
-  virtual void ObserveDrop() = 0;
-  virtual void ObserveFork() = 0;
-  virtual void ObserveMove() = 0;
-
-  History& target() const {
-    return *target_;
-  }
-
- private:
-  History* target_;
-};
-
-
 class History : public iSerializable {
  public:
-  friend class iHistoryObserver;
-  friend class HistoryItem;
+  class Item final : public iSerializable {
+   public:
+    friend class History;
 
 
-  // History can have 2^63 items.
-  using ItemId = int64_t;
+    static std::optional<std::vector<std::unique_ptr<Item>>> DeserializeBranch(
+        History*, iDeserializer*);
 
-  using ItemMap = std::map<ItemId, std::unique_ptr<HistoryItem>>;
+    static std::unique_ptr<Item> Deserialize(History*, iDeserializer*);
+
+
+    Item() = delete;
+
+    Item(const Item&) = delete;
+    Item(Item&&) = delete;
+
+    Item& operator=(const Item&) = delete;
+    Item& operator=(Item&&) = delete;
+
+
+    void DropAllAncestors() {
+      assert(IsAncestorOf(owner_->head()));
+      if (!parent_) return;
+
+      owner_->origin_ = RemoveFromParent();
+    }
+    void DropSelf() {
+      assert(parent_);
+      assert(!IsAncestorOf(owner_->head()));
+
+      RemoveFromParent();
+    }
+    void DropAllBranch() {
+      assert(&owner_->head() == this || !IsAncestorOf(owner_->head()));
+
+      branch_.clear();
+    }
+
+
+    void Fork(std::unique_ptr<Item>&& item) {
+      assert(item);
+
+      item->parent_ = this;
+      item->index_  = branch_.size();
+      branch_.push_back(std::move(item));
+    }
+    void Fork(std::unique_ptr<iCommand>&& command) {
+      Fork(std::unique_ptr<Item>(
+              new Item(owner_, owner_->clock_->now(), std::move(command))));
+    }
+
+    void TouchBranch(size_t index) {
+      auto target = std::move(branch_[index]);
+      branch_.erase(branch_.begin() + static_cast<intmax_t>(index));
+      branch_.push_back(std::move(target));
+
+      for (size_t i = index; i < branch_.size(); ++i) {
+        branch_[i]->index_ = i;
+      }
+    }
+
+
+    bool IsAncestorOf(const Item& other) const {
+      for (const Item* itr = &other; itr; itr = itr->parent_) {
+        if (itr == this) return true;
+      }
+      return false;
+    }
+    bool IsDescendantOf(const Item& other) const {
+      return other.IsAncestorOf(*this);
+    }
+    Item& FindLowestCommonAncestor(const Item& other) const {
+      for (const Item* itr = this; ; itr = itr->parent_) {
+        assert(itr);
+        if (other.IsDescendantOf(*itr)) {
+          return *const_cast<Item*>(itr);
+        }
+      }
+    }
+
+
+    std::stack<size_t> GeneratePath() const {
+      std::stack<size_t> path;
+      auto itr = this;
+      while (!itr->isOrigin()) {
+        path.push(itr->index());
+        itr = &itr->parent();
+      }
+      return path;
+    }
+
+    void Serialize(iSerializer*) const override;
+
+
+    History& owner() const {
+      return *owner_;
+    }
+    time_t createdAt() const {
+      return created_at_;
+    }
+    iCommand& command() const {
+      return *command_;
+    }
+
+    bool isOrigin() const {
+      return !parent_;
+    }
+    Item& parent() const {
+      assert(parent_);
+      return *parent_;
+    }
+    size_t index() const {
+      return index_;
+    }
+    const auto& branch() const {
+      return branch_;
+    }
+
+   private:
+    Item(History*                             owner,
+         time_t                               created_at,
+         std::unique_ptr<iCommand>&&          command,
+         std::vector<std::unique_ptr<Item>>&& branch = {}) :
+        owner_(owner),
+        created_at_(created_at),
+        command_(std::move(command)),
+        branch_(std::move(branch)) {
+      assert(owner_);
+      assert(command_);
+
+      for (size_t i = 0; i < branch_.size(); ++i) {
+        branch_[i]->parent_ = this;
+        branch_[i]->index_  = i;
+      }
+    }
+
+
+    std::unique_ptr<Item> RemoveFromParent() {
+      assert(parent_);
+      auto& pb = parent_->branch_;
+
+      auto self = std::move(pb[index_]);
+      assert(self.get() == this);
+
+      pb.erase(pb.begin() + static_cast<intmax_t>(index_));
+      for (size_t i = index_; i < pb.size(); ++i) {
+        pb[i]->index_ = i;
+      }
+
+      parent_ = nullptr;
+      return self;
+    }
+
+
+    History* owner_ = nullptr;
+
+    time_t created_at_ = 0;
+
+    std::unique_ptr<iCommand> command_;
+
+
+    Item* parent_ = nullptr;
+
+    size_t index_ = 0;  // an index of this in parent's branch
+
+    std::vector<std::unique_ptr<Item>> branch_;
+  };
 
 
   History() = delete;
-  explicit History(const iClock* clock) : clock_(clock) {
+  explicit History(const iClock*               clock,
+                   std::unique_ptr<iCommand>&& cmd = nullptr) :
+      clock_(clock),
+      origin_(
+          new Item(
+              this,
+              0,  // origin item's creation datetime is always zero
+              cmd? std::move(cmd): std::make_unique<NullCommand>(""))),
+      head_(origin_.get()) {
     assert(clock_);
-
-    Clear();
-  }
-  ~History() {
-    Clear();
+    origin_->owner_ = this;
   }
 
   History(const History&) = delete;
@@ -77,255 +211,67 @@ class History : public iSerializable {
 
 
   // Creates new item, then forks from head(), and finally ReDo()
-  void Exec(std::unique_ptr<iCommand>&& command);
+  bool Exec(std::unique_ptr<iCommand>&& command) {
+    head_->Fork(std::move(command));
+    return ReDo();
+  }
 
   // head() must have one or more branch.
-  void ReDo(size_t index = SIZE_MAX);
+  bool ReDo(size_t index = SIZE_MAX) {
+    const auto& branch = head_->branch();
 
-  // head() mustn't be a root.
-  void UnDo();
+    const size_t n = branch.size();
+    assert(n > 0);
+    if (index >= n) index = n-1;
 
-  // Drops all history and Makes NullCommand root.
-  void Clear();
+    if (!branch[index]->command().Apply()) {
+      return false;
+    }
+    head_->TouchBranch(index);
+    head_ = branch.back().get();
+    return true;
+  }
+
+  // head() mustn't be a origin.
+  bool UnDo() {
+    assert(!head_->isOrigin());
+
+    if (!head_->command().Revert()) return false;
+    head_ = &head_->parent();
+    return true;
+  }
+
+  // Drops all history and Makes NullCommand origin.
+  void Clear() {
+    head_ = origin_.get();
+    origin_->DropAllBranch();
+  }
 
 
   // Returns true if the current history tree is properly replaced by new one,
   // otherwise false and changes nothing.
   bool Deserialize(iDeserializer* des);
 
-  void Serialize(iSerializer*) const override;
+  void Serialize(iSerializer*) const final;
 
 
   const iClock& clock() const {
     return *clock_;
   }
 
-  const ItemMap& items() const {
-    return items_;
+  Item& origin() const {
+    return *origin_;
   }
-  HistoryItem& root() const {
-    return *root_;
-  }
-  HistoryItem& head() const {
+  Item& head() const {
     return *head_;
   }
 
  private:
-  std::unique_ptr<HistoryItem> DeserializeItem(
-      iDeserializer*, const ItemMap&);
-
-  HistoryItem* CreateItem(std::unique_ptr<iCommand>&&);
-
-  void DropItem(HistoryItem* item);
-
-
   const iClock* clock_;
 
-  ItemMap items_;
+  std::unique_ptr<Item> origin_;
 
-  HistoryItem* root_ = nullptr;
-  HistoryItem* head_ = nullptr;
-
-  ItemId next_ = 0;
-
-  std::vector<iHistoryObserver*> observers_;
+  Item* head_;
 };
-
-
-class HistoryItem : public iSerializable {
- public:
-  friend class History;
-
-
-  using Id = History::ItemId;
-
-  using ItemList = std::vector<HistoryItem*>;
-
-
-  // Constructor is private.
-  HistoryItem() = delete;
-
-  HistoryItem(const HistoryItem&) = delete;
-  HistoryItem(HistoryItem&&) = delete;
-
-  HistoryItem& operator=(const HistoryItem&) = delete;
-  HistoryItem& operator=(HistoryItem&&) = delete;
-
-
-  void Mark() {
-    marked_ = true;
-  }
-  void Unmark() {
-    marked_ = false;
-  }
-
-
-  // Creates new branch from the command.
-  void Fork(std::unique_ptr<iCommand>&& command) {
-    assert(command);
-
-    auto item = owner_->CreateItem(std::move(command));
-    assert(item);
-
-    item->parent_ = this;
-    branch_.push_back(item);
-
-    for (auto observer : owner_->observers_) {
-      observer->ObserveFork();
-    }
-  }
-
-
-  // Makes this item root.
-  // head() must be a descendant of `this`.
-  void MakeRoot() {
-    assert(IsAncestorOf(owner_->head()));
-
-    if (!parent_) return;
-
-    RemoveFromParent();
-    auto prev_root = owner_->root_;
-    owner_->root_ = this;
-    owner_->DropItem(prev_root);
-
-    for (auto observer : owner_->observers_) {
-      observer->ObserveDrop();
-    }
-  }
-
-  // Drops `this` and its descendants from the history tree.
-  // head() mustn't be a descendant of `this`.
-  void DropSelf() {
-    assert(parent_);
-    assert(!IsAncestorOf(owner_->head()));
-
-    RemoveFromParent();
-
-    auto owner = owner_;
-    owner->DropItem(this);  // `this` is deleted here.
-
-    for (auto observer : owner->observers_) {
-      observer->ObserveDrop();
-    }
-  }
-
-  // Drops all branches that `this` has from history tree.
-  void DropAllBranch() {
-    auto branch = std::move(branch_);
-    branch_.clear();
-
-    for (auto item : branch) {
-      item->parent_ = nullptr;
-    }
-    for (auto item : branch) {
-      owner_->DropItem(item);
-    }
-    for (auto observer : owner_->observers_) {
-      observer->ObserveDrop();
-    }
-  }
-
-
-  bool IsAncestorOf(const HistoryItem& other) const {
-    for (const HistoryItem* itr = &other; itr; itr = itr->parent_) {
-      if (itr == this) return true;
-    }
-    return false;
-  }
-
-  bool IsDescendantOf(const HistoryItem& other) const {
-    return other.IsAncestorOf(*this);
-  }
-
-  HistoryItem& FindLowestCommonAncestor(const HistoryItem& other) const {
-    for (const HistoryItem* itr = this; ; itr = itr->parent_) {
-      assert(itr);
-      if (other.IsDescendantOf(*itr)) {
-        return *const_cast<HistoryItem*>(itr);
-      }
-    }
-  }
-
-
-  void Serialize(iSerializer*) const override;
-
-
-  History& owner() const {
-    return *owner_;
-  }
-  Id id() const {
-    return id_;
-  }
-  time_t createdAt() const {
-    return created_at_;
-  }
-  iCommand& command() const {
-    return *command_;
-  }
-  bool marked() const {
-    return marked_;
-  }
-
-  bool isRoot() const {
-    return !parent_;
-  }
-  HistoryItem& parent() const {
-    assert(parent_);
-    return *parent_;
-  }
-  const ItemList& branch() const {
-    return branch_;
-  }
-
- private:
-  HistoryItem(History* owner,
-              Id id,
-              time_t created_at,
-              std::unique_ptr<iCommand>&& command,
-              bool marked = false) :
-      owner_(owner), id_(id), created_at_(created_at),
-      command_(std::move(command)), marked_(marked) {
-    assert(owner_);
-    assert(command_);
-  }
-
-  void RemoveFromParent() {
-    if (!parent_) return;
-
-    auto& parbranch = parent_->branch_;
-    auto self = std::find(parbranch.begin(), parbranch.end(), this);
-
-    assert(self != parbranch.end());
-    parent_->branch_.erase(self);
-    parent_ = nullptr;
-  }
-
-
-  History* owner_;
-
-  Id id_;
-
-  time_t created_at_;
-
-  std::unique_ptr<iCommand> command_;
-
-  bool marked_ = false;
-
-
-  HistoryItem* parent_ = nullptr;
-
-  ItemList branch_;
-};
-
-
-iHistoryObserver::iHistoryObserver(History* target) : target_(target) {
-  assert(target_);
-  target_->observers_.push_back(this);
-}
-iHistoryObserver::~iHistoryObserver() {
-  if (!target_) return;
-  auto& obs = target_->observers_;
-  obs.erase(std::remove(obs.begin(), obs.end(), this), obs.end());
-}
 
 }  // namespace mnian::core
