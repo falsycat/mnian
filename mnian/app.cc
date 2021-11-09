@@ -7,6 +7,7 @@
 
 #include <filesystem>  // NOLINT(build/c++11)
 #include <fstream>
+#include <memory>
 #include <sstream>
 #include <utility>
 
@@ -17,6 +18,7 @@
 #include "mnres/all.h"
 
 #include "mnian/app_project.h"
+#include "mnian/command.h"
 
 
 namespace mnian {
@@ -36,7 +38,7 @@ App* App::instance_ = nullptr;
 
 
 App::App(GLFWwindow* window, const core::DeserializerRegistry* reg) :
-    iApp(&clock_, reg, &logger_, &fstore_),
+    iApp(&clock_, reg, &logger_, &fstore_, std::make_unique<OriginCommand>()),
     window_(window), cpu_worker_(&cpuQ(), kCpuWorkerCount) {
   instance_ = this;
 

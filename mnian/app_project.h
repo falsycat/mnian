@@ -32,17 +32,8 @@ static constexpr const char* kInitialProject = R"({
       },
     ],
     "history": {
-      "items": [
-        {
-          "id"       : 0,
-          "createdAt": 0,
-          "marked"   : false,
-          "command"  : {"type": "mnian::NullCommand", "param": "ORIGIN"},
-          "branch"   : [],
-        },
-      ],
-      "root": 0,
-      "head": 0,
+      "origin": [],
+      "head": [],
     },
   },
 })";

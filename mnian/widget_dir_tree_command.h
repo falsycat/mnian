@@ -51,17 +51,18 @@ class DirTreeWidget::DirAddCommand final : public core::DirAddCommand {
   DirAddCommand& operator=(DirAddCommand&&) = delete;
 
 
-  void Apply() override {
-    core::DirAddCommand::Apply();
+  bool Apply() override {
+    if (!core::DirAddCommand::Apply()) return false;
     w_->Feature(dir().Find(name()));
+    return true;
   }
-  void Revert() override {
+  bool Revert() override {
     w_->Deselect(dir().Find(name()));
-    core::DirAddCommand::Revert();
+    return core::DirAddCommand::Revert();
   }
 
 
-  std::string description() const override {
+  std::string GetDescription() const override {
     return _("Adds an item to the directory.");
   }
 
@@ -121,17 +122,18 @@ class DirTreeWidget::DirRemoveCommand final : public core::DirRemoveCommand {
   DirRemoveCommand& operator=(DirRemoveCommand&&) = delete;
 
 
-  void Apply() override {
+  bool Apply() override {
     w_->Deselect(dir().Find(name()));
-    core::DirRemoveCommand::Apply();
+    return core::DirRemoveCommand::Apply();
   }
-  void Revert() override {
-    core::DirRemoveCommand::Revert();
+  bool Revert() override {
+    if (!core::DirRemoveCommand::Revert()) return false;
     w_->Feature(dir().Find(name()));
+    return true;
   }
 
 
-  std::string description() const override {
+  std::string GetDescription() const override {
     return _("Removes an item from the directory.");
   }
 
@@ -183,7 +185,7 @@ class DirTreeWidget::DirMoveCommand final : public core::DirMoveCommand {
   DirMoveCommand& operator=(DirMoveCommand&&) = delete;
 
 
-  std::string description() const override {
+  std::string GetDescription() const override {
     return _("Moves an item of the directory.");
   }
 
