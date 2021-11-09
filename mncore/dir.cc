@@ -21,12 +21,8 @@ std::optional<std::string> iDirItem::ValidateName(const std::string& name) {
 }
 
 iDirItem* iDirItem::DeserializeRef(iDeserializer* des) {
-  const auto path = des->values<std::string>();
-  if (!path) return nullptr;
-
-  auto item = des->app().project().root().FindPath(*path);
-  if (!item) return nullptr;
-  return item;
+  const auto id = des->value<ObjectId>();
+  return id? des->app().stores().dirItems().Find(*id): nullptr;
 }
 
 std::vector<std::string> iDirItem::GeneratePath() const {
@@ -55,6 +51,20 @@ bool iDirItem::IsAncestorOf(const iDirItem& other) const {
 
 
 std::unique_ptr<Dir> Dir::DeserializeParam(iDeserializer* des) {
+  auto& store = des->app().stores().dirItems();
+
+  des->Enter(std::string("id"));
+  auto id = des->value<ObjectId>();
+  des->Leave();
+
+  if (!id || store.Find(*id)) {
+    des->logger().MNCORE_LOGGER_WARN("invalid or duplicated id");
+    des->LogLocation();
+    return nullptr;
+  }
+
+  iDeserializer::ScopeGuard dummy1_(des, std::string("items"));
+
   const auto size = des->size();
   if (!size) {
     des->logger().MNCORE_LOGGER_WARN("item list is not a map");
@@ -64,7 +74,7 @@ std::unique_ptr<Dir> Dir::DeserializeParam(iDeserializer* des) {
 
   ItemMap items;
   for (size_t i = 0; i < *size; ++i) {
-    iDeserializer::ScopeGuard _(des, i);
+    iDeserializer::ScopeGuard dummy2_(des, i);
 
     const auto name = des->key();
     if (!name) {
@@ -87,14 +97,18 @@ std::unique_ptr<Dir> Dir::DeserializeParam(iDeserializer* des) {
     if (!item) continue;
     items[*name] = std::move(item);
   }
-  return std::make_unique<Dir>(std::move(items));
+  return std::make_unique<Dir>(Tag(&store, *id), std::move(items));
 }
 
 void Dir::SerializeParam(iSerializer* serializer) const {
-  iSerializer::MapGuard map(serializer);
+  iSerializer::MapGuard items(serializer);
   for (auto& item : items_) {
-    map.Add(item.first, item.second.get());
+    items.Add(item.first, item.second.get());
   }
+
+  iSerializer::MapGuard root(serializer);
+  root.Add("id", static_cast<int64_t>(id()));
+  root.Add("items", &items);
 }
 
 
@@ -124,6 +138,18 @@ std::optional<FileRef::Flag> FileRef::ParseFlag(char c) {
 }
 
 std::unique_ptr<FileRef> FileRef::DeserializeParam(iDeserializer* des) {
+  auto& store = des->app().stores().dirItems();
+
+  des->Enter(std::string("id"));
+  auto id = des->value<ObjectId>();
+  des->Leave();
+
+  if (!id || store.Find(*id)) {
+    des->logger().MNCORE_LOGGER_WARN("invalid or duplicated id");
+    des->LogLocation();
+    return nullptr;
+  }
+
   des->Enter("url");
   const auto url = des->value<std::string>();
   des->Leave();
@@ -145,37 +171,51 @@ std::unique_ptr<FileRef> FileRef::DeserializeParam(iDeserializer* des) {
   }
 
   auto f = des->app().fstore().Load(*url);
-  return std::make_unique<FileRef>(f, *flags);
+  return std::make_unique<FileRef>(Tag(&store, *id), f, *flags);
 }
 
 void FileRef::SerializeParam(iSerializer* serializer) const {
-  iSerializer::MapGuard map(serializer);
-  map.Add("url", file_->url());
+  iSerializer::MapGuard root(serializer);
 
   std::string mode;
   if (flags_ & kReadable) mode += 'r';
   if (flags_ & kWritable) mode += 'w';
-  map.Add("mode", mode);
+
+  root.Add("id",   static_cast<int64_t>(id()));
+  root.Add("url",  file_->url());
+  root.Add("mode", mode);
 }
 
 
 std::unique_ptr<NodeRef> NodeRef::DeserializeParam(iDeserializer* des) {
-  const auto id = des->value<iNode::Id>();
-  if (!id) {
-    des->logger().MNCORE_LOGGER_WARN("expected integer ID");
+  auto& store = des->app().stores().dirItems();
+
+  des->Enter(std::string("id"));
+  auto id = des->value<ObjectId>();
+  des->Leave();
+
+  if (!id || store.Find(*id)) {
+    des->logger().MNCORE_LOGGER_WARN("invalid or duplicated id");
     des->LogLocation();
     return nullptr;
   }
-  if (!des->app().project().nstore().Find(*id)) {
-    des->logger().MNCORE_LOGGER_WARN("missing node");
+
+  des->Enter(std::string("node"));
+  auto node = des->DeserializeObject<iNode>();
+  des->Leave();
+
+  if (!node) {
+    des->logger().MNCORE_LOGGER_WARN("invalid or duplicated node id");
     des->LogLocation();
     return nullptr;
   }
-  return std::make_unique<NodeRef>(&des->app().project().nstore(), *id);
+  return std::make_unique<NodeRef>(Tag(&store, *id), std::move(node));
 }
 
 void NodeRef::SerializeParam(iSerializer* serializer) const {
-  serializer->SerializeValue(static_cast<int64_t>(node_->id()));
+  iSerializer::MapGuard root(serializer);
+  root.Add("id",   static_cast<int64_t>(id()));
+  root.Add("node", node_.get());
 }
 
 }  // namespace mnian::core

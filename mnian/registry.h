@@ -17,8 +17,8 @@ namespace mnian {
 void SetupDeserializerRegistry(core::DeserializerRegistry* reg) {
   ZoneScoped;
 
-  // null objects
-  reg->RegisterType<core::iCommand, NullCommand>();
+  // commands
+  reg->RegisterType<core::iCommand, OriginCommand>();
 
   // iDirItem
   reg->RegisterType<core::iDirItem, core::Dir>();

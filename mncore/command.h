@@ -30,13 +30,14 @@ class iCommand : public iPolymorphicSerializable {
   iCommand& operator=(iCommand&&) = delete;
 
 
-  // It's guaranteed that Apply() and Revert() must be called in the following
-  // order:
+  // It's guaranteed that Apply() and Revert() are called in the following
+  // sequence:
   //   Apply() -> Revert() -> Apply() -> Revert() -> ...
-  virtual void Apply() = 0;
-  virtual void Revert() = 0;
+  virtual bool Apply()  = 0;
+  virtual bool Revert() = 0;
 
-  virtual std::string description() const {
+
+  virtual std::string GetDescription() const {
     return "(no description)";
   }
 };
@@ -56,13 +57,15 @@ class NullCommand : public iCommand {
   NullCommand& operator=(NullCommand&&) = delete;
 
 
-  void Apply() override {
+  bool Apply() override {
+    return true;
   }
-  void Revert() override {
+  bool Revert() override {
+    return true;
   }
 
 
-  std::string description() const override {
+  std::string GetDescription() const override {
     return desc_;
   }
 
@@ -95,21 +98,35 @@ class SquashedCommand : public iCommand {
   SquashedCommand& operator=(SquashedCommand&&) = delete;
 
 
-  void Apply() override {
-    for (auto& cmd : commands_) {
-      cmd->Apply();
+  bool Apply() override {
+    for (intmax_t i = 0; static_cast<size_t>(i) < commands_.size(); ++i) {
+      if (!commands_[static_cast<size_t>(i)]->Apply()) {
+        for (; i >= 0; --i) {
+          if (!commands_[static_cast<size_t>(i)]->Revert()) {
+            assert(false);  // cannot recover
+          }
+        }
+        return false;
+      }
     }
+    return true;
   }
-  void Revert() override {
-    auto itr = commands_.end();
-    while (itr > commands_.begin()) {
-      --itr;
-      (*itr)->Revert();
+  bool Revert() override {
+    for (intmax_t i = static_cast<intmax_t>(commands_.size())-1; i >= 0; --i) {
+      if (!commands_[static_cast<size_t>(i)]->Revert()) {
+        for (; static_cast<size_t>(i) < commands_.size(); ++i) {
+          if (!commands_[static_cast<size_t>(i)]->Apply()) {
+            assert(false);  // cannot recover
+          }
+        }
+        return false;
+      }
     }
+    return true;
   }
 
 
-  std::string description() const override {
+  std::string GetDescription() const override {
     return "(squashed command)";
   }
 
@@ -125,100 +142,128 @@ class SquashedCommand : public iCommand {
   void SerializeParam(iSerializer* serial) const override;
 
  private:
-  std::string description_;
-
   CommandList commands_;
 };
 
 
-// DirCommand is a command to modify Dir.
-class DirCommand : public iCommand {
+// DirAddCommand is a command to add new item to an existing Dir.
+class DirAddCommand : public iCommand {
  public:
-  enum Verb {
-    kAdd,
-    kRemove,
-  };
-
-  using Param = std::tuple<
-      Verb, Dir*, std::string, std::unique_ptr<iDirItem>>;
+  using Param = std::tuple<Dir*, std::string, std::unique_ptr<iDirItem>>;
 
 
   static std::optional<Param> DeserializeParam(iDeserializer*);
 
 
-  DirCommand() = delete;
-  DirCommand(const char*                 type,
-             Dir*                        dir,
-             const std::string&          name,
-             std::unique_ptr<iDirItem>&& item) :
-      DirCommand(type, {kAdd, dir, name, std::move(item)}) {
-    assert(dir_);
-    assert(!iDirItem::ValidateName(name_));
-    assert(item_);
+  DirAddCommand() = delete;
+  DirAddCommand(const char* type, Param&& p) :
+      iCommand(type),
+      dir_(std::get<0>(p)),
+      name_(std::get<1>(p)),
+      item_(std::move(std::get<2>(p))) {
   }
-  DirCommand(const char* type, Dir* dir, const std::string& name) :
-      DirCommand(type, {kRemove, dir, name, nullptr}) {
-    assert(dir_);
-    assert(!iDirItem::ValidateName(name_));
+  DirAddCommand(const char*                 type,
+                Dir*                        dir,
+                std::string                 name,
+                std::unique_ptr<iDirItem>&& item) :
+      DirAddCommand(type, {dir, name, std::move(item)}) {
   }
 
-  DirCommand(const DirCommand&) = delete;
-  DirCommand(DirCommand&&) = delete;
+  DirAddCommand(const DirAddCommand&) = delete;
+  DirAddCommand(DirAddCommand&&) = delete;
 
-  DirCommand& operator=(const DirCommand&) = delete;
-  DirCommand& operator=(DirCommand&&) = delete;
+  DirAddCommand& operator=(const DirAddCommand&) = delete;
+  DirAddCommand& operator=(DirAddCommand&&) = delete;
 
 
-  void Apply() override {
-    switch (verb_) {
-    case kAdd:    Add();    break;
-    case kRemove: Remove(); break;
-    }
+  bool Apply() override {
+    if (!item_ || dir_->Find(name_)) return false;
+    dir_->Add(name_, std::move(item_));
+    return true;
   }
-  void Revert() override {
-    switch (verb_) {
-    case kAdd:    Remove(); break;
-    case kRemove: Add();    break;
-    }
+  bool Revert() override {
+    assert(!item_);
+    if (item_) return false;
+    item_ = dir_->Remove(name_);
+    return !!item_;
   }
 
 
-  Verb verb() const {
-    return verb_;
-  }
   Dir& dir() const {
     return *dir_;
   }
   const std::string& name() const {
     return name_;
   }
-  iDirItem* item() const {
+  const iDirItem* item() const {
     return item_.get();
   }
 
  protected:
-  DirCommand(const char* type, Param&& p) :
-      iCommand(type),
-      verb_(std::get<0>(p)),
-      dir_(std::get<1>(p)),
-      name_(std::get<2>(p)),
-      item_(std::move(std::get<3>(p))) {
-  }
-
-
-  void SerializeParam(iSerializer*) const override;
+  void SerializeParam(iSerializer* serial) const override;
 
  private:
-  void Add() {
-    dir_->Add(name_, std::move(item_));
+  Dir* dir_;
+
+  std::string name_;
+
+  std::unique_ptr<iDirItem> item_;
+};
+
+
+// DirRemoveCommand is a command to remove the item from an existing Dir.
+class DirRemoveCommand : public iCommand {
+ public:
+  using Param = std::tuple<Dir*, std::string, std::unique_ptr<iDirItem>>;
+
+
+  static std::optional<Param> DeserializeParam(iDeserializer*);
+
+
+  DirRemoveCommand() = delete;
+  DirRemoveCommand(const char* type, Param&& p) :
+      iCommand(type),
+      dir_(std::get<0>(p)),
+      name_(std::get<1>(p)),
+      item_(std::move(std::get<2>(p))) {
   }
-  void Remove() {
+  DirRemoveCommand(const char* type, Dir* dir, std::string name) :
+      DirRemoveCommand(type, {dir, name, nullptr}) {
+  }
+
+  DirRemoveCommand(const DirRemoveCommand&) = delete;
+  DirRemoveCommand(DirRemoveCommand&&) = delete;
+
+  DirRemoveCommand& operator=(const DirRemoveCommand&) = delete;
+  DirRemoveCommand& operator=(DirRemoveCommand&&) = delete;
+
+
+  bool Apply() override {
+    if (item_) return false;
     item_ = dir_->Remove(name_);
+    return !!item_;
+  }
+  bool Revert() override {
+    if (!item_ || dir_->Find(name_)) return false;
+    dir_->Add(name_, std::move(item_));
+    return true;
   }
 
 
-  const Verb verb_;
+  Dir& dir() const {
+    return *dir_;
+  }
+  const std::string& name() const {
+    return name_;
+  }
+  const iDirItem* item() const {
+    return item_.get();
+  }
 
+ protected:
+  void SerializeParam(iSerializer* serial) const override;
+
+ private:
   Dir* dir_;
 
   std::string name_;
@@ -256,11 +301,29 @@ class DirMoveCommand : public iCommand {
   DirMoveCommand& operator=(DirMoveCommand&&) = delete;
 
 
-  void Apply() override {
+  bool Apply() override {
+    if (!src_->Find(src_name_) || dst_->Find(dst_name_)) return false;
     src_->Move(src_name_, dst_, dst_name_);
+    return true;
   }
-  void Revert() override {
+  bool Revert() override {
+    if (!dst_->Find(dst_name_) || src_->Find(src_name_)) return false;
     dst_->Move(dst_name_, src_, src_name_);
+    return true;
+  }
+
+
+  Dir& src() const {
+    return *src_;
+  }
+  const std::string& srcName() const {
+    return src_name_;
+  }
+  Dir& dst() const {
+    return *dst_;
+  }
+  const std::string& dstName() const {
+    return dst_name_;
   }
 
  protected:
@@ -307,11 +370,13 @@ class FileRefReplaceCommand : public iCommand {
   FileRefReplaceCommand& operator=(FileRefReplaceCommand&&) = delete;
 
 
-  void Apply() override {
+  bool Apply() override {
     Swap();
+    return true;
   }
-  void Revert() override {
+  bool Revert() override {
     Swap();
+    return true;
   }
 
  protected:
@@ -362,11 +427,13 @@ class FileRefFlagCommand : public iCommand {
   FileRefFlagCommand& operator=(FileRefFlagCommand&&) = delete;
 
 
-  void Apply() override {
+  bool Apply() override {
     set_? target_->SetFlag(flag_): target_->UnsetFlag(flag_);
+    return true;
   }
-  void Revert() override {
+  bool Revert() override {
     set_? target_->UnsetFlag(flag_): target_->SetFlag(flag_);
+    return true;
   }
 
  protected:

@@ -14,15 +14,15 @@
 
 namespace mnian {
 
-class DirTreeWidget::DirCommand final : public core::DirCommand {
+class DirTreeWidget::DirAddCommand final : public core::DirAddCommand {
  public:
-  static constexpr const char* kType = "mnian::DirTreeWidget::DirCommand";
+  static constexpr const char* kType = "mnian::DirTreeWidget::DirAddCommand";
 
 
-  static std::unique_ptr<DirCommand> DeserializeParam(
+  static std::unique_ptr<DirAddCommand> DeserializeParam(
       core::iDeserializer* des) {
     des->Enter(std::string("super"));
-    auto p = core::DirCommand::DeserializeParam(des);
+    auto p = core::DirAddCommand::DeserializeParam(des);
     des->Leave();
     if (!p) return nullptr;
 
@@ -32,54 +32,108 @@ class DirTreeWidget::DirCommand final : public core::DirCommand {
     des->Leave();
     if (!w) return nullptr;
 
-    return std::unique_ptr<DirCommand>(new DirCommand(w, std::move(*p)));
+    return std::unique_ptr<DirAddCommand>(new DirAddCommand(w, std::move(*p)));
   }
 
 
-  DirCommand(DirTreeWidget*                    w,
-             core::Dir*                        dir,
-             const std::string&                name,
-             std::unique_ptr<core::iDirItem>&& item) :
-      core::DirCommand(kType, dir, name, std::move(item)), w_(w) {
-    assert(w_);
-  }
-  DirCommand(DirTreeWidget* w, core::Dir* dir, const std::string& name) :
-      core::DirCommand(kType, dir, name), w_(w) {
+  DirAddCommand(DirTreeWidget*                    w,
+                core::Dir*                        dir,
+                const std::string&                name,
+                std::unique_ptr<core::iDirItem>&& item) :
+      core::DirAddCommand(kType, dir, name, std::move(item)), w_(w) {
     assert(w_);
   }
 
-  DirCommand(const DirCommand&) = delete;
-  DirCommand(DirCommand&&) = delete;
+  DirAddCommand(const DirAddCommand&) = delete;
+  DirAddCommand(DirAddCommand&&) = delete;
 
-  DirCommand& operator=(const DirCommand&) = delete;
-  DirCommand& operator=(DirCommand&&) = delete;
+  DirAddCommand& operator=(const DirAddCommand&) = delete;
+  DirAddCommand& operator=(DirAddCommand&&) = delete;
 
 
-  void Apply() override {
-    if (verb() == kRemove) {
-      w_->Deselect(dir().Find(name()));
-    }
-
-    core::DirCommand::Apply();
-
-    if (verb() == kAdd) {
-      w_->Feature(dir().Find(name()));
-    }
+  bool Apply() override {
+    if (!core::DirAddCommand::Apply()) return false;
+    w_->Feature(dir().Find(name()));
+    return true;
   }
-  void Revert() override {
-    if (verb() == kAdd) {
-      w_->Deselect(dir().Find(name()));
-    }
-
-    core::DirCommand::Revert();
-
-    if (verb() == kRemove) {
-      w_->Feature(dir().Find(name()));
-    }
+  bool Revert() override {
+    w_->Deselect(dir().Find(name()));
+    return core::DirAddCommand::Revert();
   }
 
 
-  std::string description() const override {
+  std::string GetDescription() const override {
+    return _("Adds an item to the directory.");
+  }
+
+ protected:
+  void SerializeParam(core::iSerializer* serial) const override {
+    serial->SerializeMap(size_t{2});
+
+    serial->SerializeKey("super");
+    core::DirAddCommand::SerializeParam(serial);
+
+    serial->SerializeKey("widget");
+    serial->SerializeValue(static_cast<int64_t>(w_->id()));
+  }
+
+ private:
+  DirAddCommand(DirTreeWidget* w, Param&& p) :
+      core::DirAddCommand(kType, std::move(p)), w_(w) {
+    assert(w_);
+  }
+
+
+  DirTreeWidget* w_;
+};
+
+class DirTreeWidget::DirRemoveCommand final : public core::DirRemoveCommand {
+ public:
+  static constexpr const char* kType = "mnian::DirTreeWidget::DirRemoveCommand";
+
+
+  static std::unique_ptr<DirRemoveCommand> DeserializeParam(
+      core::iDeserializer* des) {
+    des->Enter(std::string("super"));
+    auto p = core::DirRemoveCommand::DeserializeParam(des);
+    des->Leave();
+    if (!p) return nullptr;
+
+    des->Enter(std::string("widget"));
+    auto w = des->app().project().wstore().
+        DeserializeWidgetRef<DirTreeWidget>(des);
+    des->Leave();
+    if (!w) return nullptr;
+
+    return std::unique_ptr<DirRemoveCommand>(
+        new DirRemoveCommand(w, std::move(*p)));
+  }
+
+
+  DirRemoveCommand(DirTreeWidget* w, core::Dir* dir, const std::string& name) :
+      core::DirRemoveCommand(kType, dir, name), w_(w) {
+    assert(w_);
+  }
+
+  DirRemoveCommand(const DirRemoveCommand&) = delete;
+  DirRemoveCommand(DirRemoveCommand&&) = delete;
+
+  DirRemoveCommand& operator=(const DirRemoveCommand&) = delete;
+  DirRemoveCommand& operator=(DirRemoveCommand&&) = delete;
+
+
+  bool Apply() override {
+    w_->Deselect(dir().Find(name()));
+    return core::DirRemoveCommand::Apply();
+  }
+  bool Revert() override {
+    if (!core::DirRemoveCommand::Revert()) return false;
+    w_->Feature(dir().Find(name()));
+    return true;
+  }
+
+
+  std::string GetDescription() const override {
     return _("Removes an item from the directory.");
   }
 
@@ -88,15 +142,15 @@ class DirTreeWidget::DirCommand final : public core::DirCommand {
     serial->SerializeMap(size_t{2});
 
     serial->SerializeKey("super");
-    core::DirCommand::SerializeParam(serial);
+    core::DirRemoveCommand::SerializeParam(serial);
 
     serial->SerializeKey("widget");
     serial->SerializeValue(static_cast<int64_t>(w_->id()));
   }
 
  private:
-  DirCommand(DirTreeWidget* w, Param&& p) :
-      core::DirCommand(kType, std::move(p)), w_(w) {
+  DirRemoveCommand(DirTreeWidget* w, Param&& p) :
+      core::DirRemoveCommand(kType, std::move(p)), w_(w) {
     assert(w_);
   }
 
@@ -131,7 +185,7 @@ class DirTreeWidget::DirMoveCommand final : public core::DirMoveCommand {
   DirMoveCommand& operator=(DirMoveCommand&&) = delete;
 
 
-  std::string description() const override {
+  std::string GetDescription() const override {
     return _("Moves an item of the directory.");
   }
 

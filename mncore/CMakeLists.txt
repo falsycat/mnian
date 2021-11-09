@@ -14,6 +14,7 @@ target_sources(mncore
     logger.h
     node.h
     serialize.h
+    store.h
     task.h
     widget.h
   PRIVATE

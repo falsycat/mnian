@@ -24,6 +24,8 @@ static inline std::optional<std::vector<core::iDirItem*>> DeserializeItems(
   if (!n) return std::nullopt;
 
   std::vector<core::iDirItem*> ret;
+  ret.reserve(*n);
+
   for (size_t i = 0; i < *n; ++i) {
     core::iDeserializer::ScopeGuard dummy(des, i);
 
@@ -37,7 +39,8 @@ static inline std::optional<std::vector<core::iDirItem*>> DeserializeItems(
 
 void DirTreeWidget::Register(core::DeserializerRegistry* reg) {
   reg->RegisterType<core::iWidget, DirTreeWidget>();
-  reg->RegisterType<core::iCommand, DirCommand>();
+  reg->RegisterType<core::iCommand, DirAddCommand>();
+  reg->RegisterType<core::iCommand, DirRemoveCommand>();
   reg->RegisterType<core::iCommand, DirMoveCommand>();
 }
 
@@ -205,7 +208,7 @@ void DirTreeWidget::Update() {
              const std::string&                name,
              std::unique_ptr<core::iDirItem>&& item) {
       w_->app_->ExecCommand(
-          std::make_unique<DirCommand>(w_, dir, name, std::move(item)));
+          std::make_unique<DirAddCommand>(w_, dir, name, std::move(item)));
     }
 
     void Clone() {
@@ -239,7 +242,7 @@ void DirTreeWidget::Update() {
       auto dir = &target_->parent();
 
       w_->app_->ExecCommand(
-          std::make_unique<DirCommand>(w_, dir, target_->name()));
+          std::make_unique<DirRemoveCommand>(w_, dir, target_->name()));
     }
     void RemoveSelection() {
       for (auto item : w_->selection_) {
@@ -257,7 +260,8 @@ void DirTreeWidget::Update() {
         if (skip) continue;
 
         w_->app_->ExecCommand(
-            std::make_unique<DirCommand>(w_, &item->parent(), item->name()));
+            std::make_unique<DirRemoveCommand>(
+                w_, &item->parent(), item->name()));
       }
     }
 
@@ -357,7 +361,8 @@ void DirTreeWidget::Update() {
     void SubMenuForAddition(core::Dir* target) {
       if (ImGui::Selectable(_("new directory"))) {
         const auto name = FindUniqueNameForNewItem(target);
-        Add(target, name, std::make_unique<core::Dir>());
+        Add(target, name,
+            std::make_unique<core::Dir>(&w_->app_->stores().dirItems()));
       }
       if (ImGui::Selectable(_("new node"))) {
         // TODO(falsycat)
@@ -524,29 +529,19 @@ std::unique_ptr<DirTreeWidget> DirTreeWidget::DeserializeParam(
 void DirTreeWidget::SerializeParam(core::iSerializer* serial) const {
   assert(serial);
 
-  serial->SerializeMap(2);
-
-  serial->SerializeKey("open");
-  serial->SerializeArray(open_.size());
-
+  core::iSerializer::ArrayGuard open(serial);
   for (auto item : open_) {
-    const auto path = item->GeneratePath();
-    serial->SerializeArray(path.size());
-    for (const auto& term : path) {
-      serial->SerializeValue(term);
-    }
+    open.Add(static_cast<int64_t>(item->id()));
   }
 
-  serial->SerializeKey("selection");
-  serial->SerializeArray(selection_.size());
-
+  core::iSerializer::ArrayGuard selection(serial);
   for (auto item : selection_) {
-    const auto path = item->GeneratePath();
-    serial->SerializeArray(path.size());
-    for (const auto& term : path) {
-      serial->SerializeValue(term);
-    }
+    selection.Add(static_cast<int64_t>(item->id()));
   }
+
+  core::iSerializer::MapGuard root(serial);
+  root.Add("open",      &open);
+  root.Add("selection", &selection);
 }
 
 }  // namespace mnian

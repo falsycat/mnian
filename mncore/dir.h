@@ -16,6 +16,7 @@
 #include "mncore/file.h"
 #include "mncore/node.h"
 #include "mncore/serialize.h"
+#include "mncore/store.h"
 
 
 namespace mnian::core {
@@ -99,17 +100,23 @@ class iDirItem : public iPolymorphicSerializable {
   friend class Dir;
 
 
+  using Store = ObjectStore<iDirItem>;
+  using Tag   = Store::Tag;
+
+
   // Returns a reason on failure, or std::nullopt on success.
   static std::optional<std::string> ValidateName(const std::string& name);
 
 
-  // Deserializes a reference to an item from path expressed in string array.
-  // Returns nullptr if no such item is found.
+  // Deserializes a reference to an item from id.  Returns nullptr if no such
+  // item is found.
   static iDirItem* DeserializeRef(iDeserializer* des);
 
 
   iDirItem() = delete;
-  explicit iDirItem(const char* type) : iPolymorphicSerializable(type) {
+  iDirItem(const char* type, Tag&& tag) :
+      iPolymorphicSerializable(type), tag_(std::move(tag)) {
+    tag_.Attach(this);
   }
   ~iDirItem() override {
     for (auto observer : observers_) {
@@ -145,6 +152,11 @@ class iDirItem : public iPolymorphicSerializable {
   }
 
 
+  void SerializeRef(iSerializer* serial) const {
+    serial->SerializeValue(static_cast<int64_t>(id()));
+  }
+
+
   bool isRoot() const {
     return !parent_;
   }
@@ -154,6 +166,13 @@ class iDirItem : public iPolymorphicSerializable {
   }
   const std::string& name() const {
     return name_;
+  }
+
+  ObjectId id() const {
+    return tag_.id();
+  }
+  const Tag& tag() const {
+    return tag_;
   }
 
  protected:
@@ -174,6 +193,8 @@ class iDirItem : public iPolymorphicSerializable {
   }
 
  private:
+  Tag tag_;
+
   Dir* parent_ = nullptr;
 
   std::string name_;
@@ -191,8 +212,6 @@ class Dir final : public iDirItem {
   using ItemMap = std::map<std::string, std::unique_ptr<iDirItem>>;
 
 
-  // Deserializes a reference to Dir from path expressed in string array.
-  // Returns nullptr if no such item is found.
   static Dir* DeserializeRef(iDeserializer* des) {
     return dynamic_cast<Dir*>(iDirItem::DeserializeRef(des));
   }
@@ -200,8 +219,8 @@ class Dir final : public iDirItem {
   static std::unique_ptr<Dir> DeserializeParam(iDeserializer*);
 
 
-  explicit Dir(ItemMap&& items = {}) :
-      iDirItem(kType), items_(std::move(items)) {
+  Dir(Tag&& tag, ItemMap&& items = {}) :
+      iDirItem(kType, std::move(tag)), items_(std::move(items)) {
     for (auto& item : items_) {
       const auto& name = item.first;
       auto        ptr  = item.second.get();
@@ -223,7 +242,7 @@ class Dir final : public iDirItem {
     for (auto& item : items_) {
       clone_item[item.first] = item.second->Clone();
     }
-    return std::make_unique<Dir>(std::move(clone_item));
+    return std::make_unique<Dir>(Tag(tag()), std::move(clone_item));
   }
 
   void Visit(iDirItemVisitor* visitor) override {
@@ -360,15 +379,14 @@ class FileRef final : public iDirItem {
 
   static std::unique_ptr<FileRef> DeserializeParam(iDeserializer* des);
 
-  // Deserializes a reference to FileRef from path expressed in string array.
-  // Returns nullptr if no such item is found.
   static FileRef* DeserializeRef(iDeserializer* des) {
     return dynamic_cast<FileRef*>(iDirItem::DeserializeRef(des));
   }
 
 
   FileRef() = delete;
-  FileRef(iFile* file, Flags flags) : iDirItem(kType),
+  FileRef(Tag&& tag, iFile* file, Flags flags) :
+      iDirItem(kType, std::move(tag)),
       file_(file), flags_(flags), observer_(this) {
     assert(file_);
   }
@@ -381,7 +399,7 @@ class FileRef final : public iDirItem {
 
 
   std::unique_ptr<iDirItem> Clone() const override {
-    return std::make_unique<FileRef>(file_, flags_);
+    return std::make_unique<FileRef>(Tag(tag()), file_, flags_);
   }
 
   void Visit(iDirItemVisitor* visitor) override {
@@ -456,8 +474,6 @@ class NodeRef final : public iDirItem {
   static constexpr const char* kType = "mnian::core::NodeRef";
 
 
-  // Deserializes a reference to NodeRef from path expressed in string array.
-  // Returns nullptr if no such item is found.
   static NodeRef* DeserializeRef(iDeserializer* des) {
     return dynamic_cast<NodeRef*>(iDirItem::DeserializeRef(des));
   }
@@ -466,20 +482,9 @@ class NodeRef final : public iDirItem {
 
 
   NodeRef() = delete;
-  NodeRef(NodeStore* store, std::unique_ptr<iNode>&& node) :
-      iDirItem(kType),
-      store_(store), node_(store_->Add(std::move(node))), observer_(this) {
-    assert(store_);
+  NodeRef(Tag&& tag, std::unique_ptr<iNode>&& node) :
+      iDirItem(kType, std::move(tag)), node_(std::move(node)), observer_(this) {
     assert(node_);
-  }
-  NodeRef(NodeStore* store, iNode::Id id) :
-      iDirItem(kType),
-      store_(store), node_(store_->Find(id)), observer_(this) {
-    assert(store_);
-    assert(node_);
-  }
-  ~NodeRef() {
-    store_->Drop(node_);
   }
 
   NodeRef(const NodeRef&) = delete;
@@ -490,7 +495,7 @@ class NodeRef final : public iDirItem {
 
 
   std::unique_ptr<iDirItem> Clone() const override {
-    return std::make_unique<NodeRef>(store_, node_->Clone());
+    return std::make_unique<NodeRef>(Tag(tag()), node_->Clone());
   }
 
   void Visit(iDirItemVisitor* visitor) override {
@@ -521,9 +526,7 @@ class NodeRef final : public iDirItem {
   };
 
 
-  NodeStore* store_;
-
-  iNode* node_;
+  std::unique_ptr<iNode> node_;
 
   NodeObserver observer_;
 };

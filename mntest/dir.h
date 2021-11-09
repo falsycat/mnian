@@ -6,6 +6,7 @@
 #include <gmock/gmock.h>
 
 #include <memory>
+#include <utility>
 
 
 namespace mnian::test {
@@ -52,7 +53,8 @@ class MockDirItem : public core::iDirItem {
   static constexpr const char* kType = "Mock";
 
 
-  MockDirItem() : iDirItem(kType) {
+  MockDirItem() = delete;
+  explicit MockDirItem(Tag&& tag) : iDirItem(kType, std::move(tag)) {
   }
 
   MockDirItem(const MockDirItem&) = delete;

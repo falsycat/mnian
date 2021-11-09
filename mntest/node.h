@@ -26,10 +26,7 @@ class MockNodeObserver : public core::iNodeObserver {
   MockNodeObserver& operator=(MockNodeObserver&&) = delete;
 
 
-  MOCK_METHOD(void, ObserveNew,          (), (override));
   MOCK_METHOD(void, ObserveDelete,       (), (override));
-  MOCK_METHOD(void, ObserveActivate,     (), (override));
-  MOCK_METHOD(void, ObserveDeactivate,   (), (override));
   MOCK_METHOD(void, ObserveUpdate,       (), (override));
   MOCK_METHOD(void, ObserveSocketChange, (), (override));
 };
@@ -38,9 +35,14 @@ class MockNode : public core::iNode {
  public:
   static constexpr const char* kType = "MockNode";
 
-  explicit MockNode(std::vector<Socket>&& in  = {},
+  explicit MockNode(Tag&&                 tag,
+                    std::vector<Socket>&& in  = {},
                     std::vector<Socket>&& out = {}) :
-      iNode(ActionList {}, kType, std::move(in), std::move(out)) {
+      iNode(ActionList {},
+            kType,
+            std::move(tag),
+            std::move(in),
+            std::move(out)) {
   }
 
   MockNode(const MockNode&) = delete;

@@ -22,13 +22,12 @@ target_sources(mntest
     file.cc
     file.h
     history.cc
-    history.h
     logger.cc
     logger.h
-    node.cc
     node.h
     serialize.cc
     serialize.h
+    store.cc
     task.cc
     task.h
 )

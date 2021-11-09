@@ -13,6 +13,7 @@
 
 #include "mncore/action.h"
 #include "mncore/serialize.h"
+#include "mncore/store.h"
 #include "mncore/task.h"
 
 
@@ -39,23 +40,8 @@ class iNodeObserver {
   iNodeObserver& operator=(iNodeObserver&&) = delete;
 
 
-  // Be called when the node is registered to NodeStore.
-  virtual void ObserveNew() {
-  }
-
-  // Be called when the node is deleted completely from the entire project.
-  // There's no chance for the node to be used anymore.
+  // Be called when the node is completely deleted.
   virtual void ObserveDelete() {
-  }
-
-  // Be called when the node is added to the project including a case in
-  // recovering from History.
-  virtual void ObserveActivate() {
-  }
-
-  // Be called when the node is removed from the project. However it's
-  // still alive in History and can be recovered.
-  virtual void ObserveDeactivate() {
   }
 
   // Be called when the node's output is affected by changes of parameters or
@@ -84,11 +70,12 @@ class iNode : public iActionable, public iPolymorphicSerializable {
   friend class NodeStore;
 
 
-  using Id = uint64_t;
+  using Store = ObjectStore<iNode>;
+  using Tag   = Store::Tag;
 
   struct Socket {
    public:
-    friend iNode;
+    friend class iNode;
 
 
     enum Type {
@@ -133,13 +120,19 @@ class iNode : public iActionable, public iPolymorphicSerializable {
   };
 
 
+  // Deserializes an id integer and returns a pointer to the node.
+  static iNode* DeserializeRef(iDeserializer* des);
+
+
   iNode() = delete;
   iNode(ActionList&&          actions,
         const char*           type,
+        Tag&&                 tag,
         std::vector<Socket>&& in,
         std::vector<Socket>&& out) :
       iActionable(std::move(actions)), iPolymorphicSerializable(type),
-      input_(std::move(in)), output_(std::move(out)) {
+      tag_(std::move(tag)), input_(std::move(in)), output_(std::move(out)) {
+    tag_.Attach(this);
   }
   ~iNode() {
     for (auto observer : observers_) {
@@ -160,21 +153,13 @@ class iNode : public iActionable, public iPolymorphicSerializable {
   virtual std::shared_ptr<iTask> QueueTask() = 0;
 
 
-  void NotifyActivate() {
-    for (auto observer : observers_) {
-      observer->ObserveActivate();
-    }
+  ObjectId id() const {
+    return tag_.id();
   }
-  void NotifyDeactivate() {
-    for (auto observer : observers_) {
-      observer->ObserveDeactivate();
-    }
+  const Tag& tag() const {
+    return tag_;
   }
 
-
-  Id id() const {
-    return id_;
-  }
   const std::vector<Socket>& input() const {
     return input_;
   }
@@ -209,11 +194,6 @@ class iNode : public iActionable, public iPolymorphicSerializable {
   }
 
  private:
-  void NotifyNew() {
-    for (auto observer : observers_) {
-      observer->ObserveNew();
-    }
-  }
   void NotifySocketChange() {
     for (auto observer : observers_) {
       observer->ObserveSocketChange();
@@ -221,7 +201,7 @@ class iNode : public iActionable, public iPolymorphicSerializable {
   }
 
 
-  Id id_;
+  Tag tag_;
 
   std::vector<Socket> input_;
   std::vector<Socket> output_;
@@ -254,69 +234,6 @@ class iNodeFactory : public iActionable {
 
  private:
   std::string name_;
-};
-
-
-// A store for all nodes in the entire of project including History.
-class NodeStore final : public iSerializable {
- public:
-  NodeStore() = default;
-
-  NodeStore(const NodeStore&) = delete;
-  NodeStore(NodeStore&&) = delete;
-
-  NodeStore& operator=(const NodeStore&) = delete;
-  NodeStore& operator=(NodeStore&&) = delete;
-
-
-  // Adds new node to this store.
-  iNode* Add(std::unique_ptr<iNode>&& node) {
-    const auto id = next_++;
-
-    auto ptr = node.get();
-    items_[id] = std::move(node);
-
-    ptr->id_ = id;
-    ptr->NotifyNew();
-    return ptr;
-  }
-  iNode* Create(iNodeFactory* f) {
-    return Add(f->Create());
-  }
-
-  // Deletes the node completely. This means that the node will never be used
-  // anymore.
-  bool Drop(iNode::Id id) {
-    auto itr = items_.find(id);
-    if (itr == items_.end()) return false;
-    items_.erase(itr);
-    return true;
-  }
-  bool Drop(const iNode* node) {
-    return Drop(node->id());
-  }
-
-  // Drops all nodes.
-  void Clear() {
-    items_.clear();
-    next_ = 0;
-  }
-
-
-  iNode* Find(iNode::Id id) const {
-    auto itr = items_.find(id);
-    if (itr == items_.end()) return nullptr;
-    return itr->second.get();
-  }
-
-
-  bool Deserialize(iDeserializer*);
-  void Serialize(iSerializer*) const override;
-
- private:
-  std::unordered_map<iNode::Id, std::unique_ptr<iNode>> items_;
-
-  iNode::Id next_ = 0;
 };
 
 

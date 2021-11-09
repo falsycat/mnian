@@ -11,32 +11,41 @@
 
 namespace mnian {
 
-class NullCommand : public core::NullCommand {
+class OriginCommand : public core::iCommand {
  public:
-  static constexpr const char* kType = "mnian::NullCommand";
+  static constexpr const char* kType = "mnian::OriginCommand";
 
 
-  static std::unique_ptr<NullCommand> DeserializeParam(
-      core::iDeserializer* des) {
-    const auto desc = des->value<std::string>();
-    if (!desc) return nullptr;
-    return std::make_unique<NullCommand>(*desc);
+  static std::unique_ptr<OriginCommand> DeserializeParam(core::iDeserializer*) {
+    return std::make_unique<OriginCommand>();
   }
 
 
-  explicit NullCommand(const std::string& desc) :
-      core::NullCommand(kType, desc) {
+  OriginCommand() : core::iCommand(kType) {
   }
 
-  NullCommand(const NullCommand&) = delete;
-  NullCommand(NullCommand&&) = delete;
+  OriginCommand(const OriginCommand&) = delete;
+  OriginCommand(OriginCommand&&) = delete;
 
-  NullCommand& operator=(const NullCommand&) = delete;
-  NullCommand& operator=(NullCommand&&) = delete;
+  OriginCommand& operator=(const OriginCommand&) = delete;
+  OriginCommand& operator=(OriginCommand&&) = delete;
 
 
-  std::string description() const override {
-    return _(core::NullCommand::description().c_str());
+  bool Apply() override {
+    return true;
+  }
+  bool Revert() override {
+    return true;
+  }
+
+
+  std::string GetDescription() const override {
+    return _("origin of the history");
+  }
+
+
+  void SerializeParam(core::iSerializer* serial) const override {
+    serial->SerializeMap(0);
   }
 };
 
