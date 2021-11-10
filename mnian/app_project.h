@@ -30,6 +30,13 @@ static constexpr const char* kInitialProject = R"({
           "param": {}
         },
       },
+      {
+        "id": 1,
+        "entity": {
+          "type" : "mnian::HistoryTreeWidget",
+          "param": {}
+        },
+      },
     ],
     "history": {
       "origin": [],

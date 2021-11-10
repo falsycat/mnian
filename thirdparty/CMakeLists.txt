@@ -123,7 +123,12 @@ FetchContent_Populate(linalg_h)
 
 add_library(linalg.h INTERFACE)
 target_include_directories(linalg.h SYSTEM
-  INTERFACE "${linalg_h_SOURCE_DIR}"
+  INTERFACE .  "${linalg_h_SOURCE_DIR}"
+)
+target_sources(linalg.h
+  INTERFACE
+    "${linalg_h_SOURCE_DIR}/linalg.h"
+    linalg_aliases.h
 )
 
 
