@@ -39,8 +39,9 @@ static constexpr const char* kInitialProject = R"({
       },
     ],
     "history": {
-      "origin": [],
-      "head": [],
+      "commands": [],
+      "origin"  : [],
+      "head"    : [],
     },
   },
 })";
