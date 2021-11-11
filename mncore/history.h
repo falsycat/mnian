@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <stack>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -20,15 +21,20 @@ namespace mnian::core {
 
 class History : public iSerializable {
  public:
-  class Item final : public iSerializable {
+  class Item final {
    public:
     friend class History;
 
 
     static std::optional<std::vector<std::unique_ptr<Item>>> DeserializeBranch(
-        History*, iDeserializer*);
+        iDeserializer*,
+        History*,
+        std::vector<std::unique_ptr<iCommand>>*);
 
-    static std::unique_ptr<Item> Deserialize(History*, iDeserializer*);
+    static std::unique_ptr<Item> Deserialize(
+        iDeserializer*,
+        History*,
+        std::vector<std::unique_ptr<iCommand>>*);
 
 
     Item() = delete;
@@ -111,7 +117,18 @@ class History : public iSerializable {
       return path;
     }
 
-    void Serialize(iSerializer*) const override;
+
+    void SerializePastCommands(
+        std::vector<iCommand*>*                cmd,
+        std::unordered_map<iCommand*, size_t>* idx,
+        size_t                                 prev = SIZE_MAX) const;
+
+    void SerializeFutureCommands(
+        std::vector<iCommand*>*                cmd,
+        std::unordered_map<iCommand*, size_t>* idx) const;
+
+    void Serialize(
+        iSerializer*, const std::unordered_map<iCommand*, size_t>& idx) const;
 
 
     History& owner() const {
