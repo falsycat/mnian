@@ -84,6 +84,12 @@ class iNode : public iActionable, public iPolymorphicSerializable {
       kString,
     };
 
+    enum State {
+      kOpen,    // shown and connectable
+      kClose,   // shown and not connectable
+      kHidden,  // hidden and not connectable
+    };
+
 
     Socket() = delete;
     Socket(const std::string& name, Type type) : name_(name), type_(type) {
@@ -96,6 +102,10 @@ class iNode : public iActionable, public iPolymorphicSerializable {
     Socket& operator=(Socket&&) = default;
 
 
+    void Update(State state) {
+      state_ = state;
+    }
+
     bool Match(const Socket& other) const {
       return type_ == other.type_;
     }
@@ -107,8 +117,8 @@ class iNode : public iActionable, public iPolymorphicSerializable {
     Type type() const {
       return type_;
     }
-    bool opened() const {
-      return open_;
+    State state() const {
+      return state_;
     }
 
    private:
@@ -116,7 +126,7 @@ class iNode : public iActionable, public iPolymorphicSerializable {
 
     Type type_;
 
-    bool open_ = false;
+    State state_ = kClose;
   };
 
 
