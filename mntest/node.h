@@ -26,6 +26,8 @@ class MockNodeObserver : public core::iNodeObserver {
   MockNodeObserver& operator=(MockNodeObserver&&) = delete;
 
 
+  MOCK_METHOD(void, ObserveRecover,      (), (override));
+  MOCK_METHOD(void, ObserveRemove,       (), (override));
   MOCK_METHOD(void, ObserveDelete,       (), (override));
   MOCK_METHOD(void, ObserveUpdate,       (), (override));
   MOCK_METHOD(void, ObserveSocketChange, (), (override));
@@ -59,11 +61,6 @@ class MockNode : public core::iNode {
 
 
   using iNode::NotifyUpdate;
-
-  using iNode::OpenInput;
-  using iNode::CloseInput;
-  using iNode::OpenOutput;
-  using iNode::CloseOutput;
 };
 
 class MockNodeFactory : public core::iNodeFactory {

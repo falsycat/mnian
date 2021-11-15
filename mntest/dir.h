@@ -41,11 +41,11 @@ class MockDirItemObserver : public core::iDirItemObserver {
   MockDirItemObserver& operator=(MockDirItemObserver&&) = delete;
 
 
-  MOCK_METHOD(void, ObserveUpdate, (), (override));
-  MOCK_METHOD(void, ObserveAdd, (), (override));
-  MOCK_METHOD(void, ObserveRemove, (), (override));
-  MOCK_METHOD(void, ObserveMove, (), (override));
-  MOCK_METHOD(void, ObserveDelete, (), (override));
+  MOCK_METHOD(void, ObserveRecover, (), (override));
+  MOCK_METHOD(void, ObserveRemove,  (), (override));
+  MOCK_METHOD(void, ObserveMove,    (), (override));
+  MOCK_METHOD(void, ObserveDelete,  (), (override));
+  MOCK_METHOD(void, ObserveUpdate,  (), (override));
 };
 
 class MockDirItem : public core::iDirItem {

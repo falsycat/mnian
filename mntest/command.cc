@@ -66,7 +66,7 @@ TEST(DirAddCommand, ApplyAndRevert) {
 
   core::DirAddCommand cmd("", &dir, "hello", std::move(item));
   {
-    EXPECT_CALL(obs, ObserveAdd());
+    EXPECT_CALL(obs, ObserveRecover());
     ASSERT_TRUE(cmd.Apply());
   }
   ASSERT_EQ(dir.Find("hello"), item_ptr);
@@ -78,7 +78,7 @@ TEST(DirAddCommand, ApplyAndRevert) {
   ASSERT_FALSE(dir.Find("hello"));
 
   {
-    EXPECT_CALL(obs, ObserveAdd());
+    EXPECT_CALL(obs, ObserveRecover());
     ASSERT_TRUE(cmd.Apply());
   }
   ASSERT_EQ(dir.Find("hello"), item_ptr);
@@ -104,7 +104,7 @@ TEST(DirRemoveCommand, ApplyAndRevert) {
   ASSERT_FALSE(dir.Find("hello"));
 
   {
-    EXPECT_CALL(obs, ObserveAdd());
+    EXPECT_CALL(obs, ObserveRecover());
     ASSERT_TRUE(cmd.Revert());
   }
   ASSERT_EQ(dir.Find("hello"), item);
