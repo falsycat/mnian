@@ -30,8 +30,8 @@ class iNodeObserver {
 
 
   iNodeObserver() = delete;
-  inline explicit iNodeObserver(iNode* target);
-  inline virtual ~iNodeObserver();
+  explicit iNodeObserver(iNode* target);
+  virtual ~iNodeObserver();
 
   iNodeObserver(const iNodeObserver&) = delete;
   iNodeObserver(iNodeObserver&&) = delete;
@@ -40,12 +40,18 @@ class iNodeObserver {
   iNodeObserver& operator=(iNodeObserver&&) = delete;
 
 
+  // Be called when the node is added to project.
+  virtual void ObserveRecover() {
+  }
+  // Be called when the node is removed from the project but it can be recovered
+  // by history operation.
+  virtual void ObserveRemove() {
+  }
   // Be called when the node is completely deleted.
   virtual void ObserveDelete() {
   }
 
-  // Be called when the node's output is affected by changes of parameters or
-  // child nodes.
+  // Be called when the node's output is affected by parameter changes.
   virtual void ObserveUpdate() {
   }
 
@@ -84,6 +90,12 @@ class iNode : public iActionable, public iPolymorphicSerializable {
       kString,
     };
 
+    enum State {
+      kOpen,    // shown and connectable
+      kClose,   // shown and not connectable
+      kHidden,  // hidden and not connectable
+    };
+
 
     Socket() = delete;
     Socket(const std::string& name, Type type) : name_(name), type_(type) {
@@ -96,6 +108,10 @@ class iNode : public iActionable, public iPolymorphicSerializable {
     Socket& operator=(Socket&&) = default;
 
 
+    void Update(State state) {
+      state_ = state;
+    }
+
     bool Match(const Socket& other) const {
       return type_ == other.type_;
     }
@@ -107,8 +123,8 @@ class iNode : public iActionable, public iPolymorphicSerializable {
     Type type() const {
       return type_;
     }
-    bool opened() const {
-      return open_;
+    State state() const {
+      return state_;
     }
 
    private:
@@ -116,7 +132,7 @@ class iNode : public iActionable, public iPolymorphicSerializable {
 
     Type type_;
 
-    bool open_ = false;
+    State state_ = kClose;
   };
 
 
@@ -168,39 +184,35 @@ class iNode : public iActionable, public iPolymorphicSerializable {
   }
 
  protected:
+  void NotifyRecover() {
+    for (auto observer : observers_) {
+      observer->ObserveRecover();
+    }
+  }
+  void NotifyRemove() {
+    for (auto observer : observers_) {
+      observer->ObserveRemove();
+    }
+  }
   void NotifyUpdate() {
     for (auto observer : observers_) {
       observer->ObserveUpdate();
     }
   }
-
-
-  void OpenInput(size_t i) {
-    input_[i].open_ = true;
-    NotifySocketChange();
-  }
-  void CloseInput(size_t i) {
-    input_[i].open_ = false;
-    NotifySocketChange();
-  }
-
-  void OpenOutput(size_t i) {
-    output_[i].open_ = true;
-    NotifySocketChange();
-  }
-  void CloseOutput(size_t i) {
-    output_[i].open_ = false;
-    NotifySocketChange();
-  }
-
- private:
   void NotifySocketChange() {
     for (auto observer : observers_) {
       observer->ObserveSocketChange();
     }
   }
 
+  Socket* input() {
+    return &input_[0];
+  }
+  Socket* output() {
+    return &output_[0];
+  }
 
+ private:
   Tag tag_;
 
   std::vector<Socket> input_;
@@ -235,16 +247,5 @@ class iNodeFactory : public iActionable {
  private:
   std::string name_;
 };
-
-
-iNodeObserver::iNodeObserver(iNode* target) : target_(target) {
-  assert(target_);
-  target_->observers_.push_back(this);
-}
-iNodeObserver::~iNodeObserver() {
-  if (!target_) return;
-  auto& obs = target_->observers_;
-  obs.erase(std::remove(obs.begin(), obs.end(), this), obs.end());
-}
 
 }  // namespace mnian::core

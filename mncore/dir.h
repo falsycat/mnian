@@ -53,8 +53,8 @@ class iDirItemObserver {
 
 
   iDirItemObserver() = delete;
-  inline explicit iDirItemObserver(iDirItem* target);
-  inline virtual ~iDirItemObserver();
+  explicit iDirItemObserver(iDirItem* target);
+  virtual ~iDirItemObserver();
 
   iDirItemObserver(const iDirItemObserver&) = delete;
   iDirItemObserver(iDirItemObserver&&) = delete;
@@ -63,23 +63,23 @@ class iDirItemObserver {
   iDirItemObserver& operator=(iDirItemObserver&&) = delete;
 
 
-  // Be called when contents of the item is updated.
-  virtual void ObserveUpdate() {
-  }
-
   // Be called when the item is added to directory tree.
-  virtual void ObserveAdd() {
-  }
-  // Be called when the item is moved to other directory or renamed.
-  virtual void ObserveMove() {
+  virtual void ObserveRecover() {
   }
   // Be called when the item is removed from directory tree to History.
-  // When recovers from the History, ObserveAdd is called.
   virtual void ObserveRemove() {
   }
   // Be called when the item is deleted from memory. The item is completely
   // deleted and not recoverable anymore.
   virtual void ObserveDelete() {
+  }
+
+  // Be called when the item is moved to other directory or renamed.
+  virtual void ObserveMove() {
+  }
+
+  // Be called when contents of the item is updated.
+  virtual void ObserveUpdate() {
   }
 
 
@@ -175,10 +175,10 @@ class iDirItem : public iPolymorphicSerializable {
     return tag_;
   }
 
- protected:
-  void NotifyAdd() {
+ private:
+  void NotifyRecover() {
     for (auto& observer : observers_) {
-      observer->ObserveAdd();
+      observer->ObserveRecover();
     }
   }
   void NotifyMove() {
@@ -192,7 +192,7 @@ class iDirItem : public iPolymorphicSerializable {
     }
   }
 
- private:
+
   Tag tag_;
 
   Dir* parent_ = nullptr;
@@ -226,7 +226,7 @@ class Dir final : public iDirItem {
       auto        ptr  = item.second.get();
       ptr->name_   = name;
       ptr->parent_ = this;
-      ptr->NotifyAdd();
+      ptr->NotifyRecover();
     }
   }
 
@@ -261,7 +261,7 @@ class Dir final : public iDirItem {
 
     auto ret = item.get();
     items_[name] = std::move(item);
-    ret->NotifyAdd();
+    ret->NotifyRecover();
     NotifyUpdate();
     return ret;
   }
@@ -530,16 +530,5 @@ class NodeRef final : public iDirItem {
 
   NodeObserver observer_;
 };
-
-
-iDirItemObserver::iDirItemObserver(iDirItem* target) : target_(target) {
-  assert(target_);
-  target_->observers_.push_back(this);
-}
-iDirItemObserver::~iDirItemObserver() {
-  if (!target_) return;
-  auto& obs = target_->observers_;
-  obs.erase(std::remove(obs.begin(), obs.end(), this), obs.end());
-}
 
 }  // namespace mnian::core

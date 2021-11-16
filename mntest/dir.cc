@@ -134,7 +134,7 @@ TEST(Dir, Move) {
         <::testing::StrictMock<MockDirItemObserver>>(subdir.get());
 
     ::testing::InSequence _;
-    EXPECT_CALL(*sub_observer, ObserveAdd());
+    EXPECT_CALL(*sub_observer, ObserveRecover());
     EXPECT_CALL(*sub_observer, ObserveMove());
 
     sub_observers.push_back(std::move(sub_observer));
@@ -402,7 +402,7 @@ TEST(iDirItemObserver, LosingTarget) {
 
   ::testing::StrictMock<MockDirItemObserver> observer(fref.get());
 
-  EXPECT_CALL(observer, ObserveAdd());
+  EXPECT_CALL(observer, ObserveRecover());
   dir->Add("hoge", std::move(fref));
 
   EXPECT_CALL(observer, ObserveDelete());
