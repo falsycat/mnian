@@ -310,7 +310,7 @@ TEST(FileRef, EntityUpdate) {
 
   ::testing::StrictMock<MockDirItemObserver> observer(&fref);
   EXPECT_CALL(observer, ObserveUpdate());
-  file.Touch();
+  file.NotifyUpdate();
 }
 
 TEST(FileRef, ReplaceEntity) {

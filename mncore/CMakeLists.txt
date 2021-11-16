@@ -21,11 +21,14 @@ target_sources(mncore
     app.cc
     command.cc
     dir.cc
+    file.cc
     history.cc
     node.cc
     serialize.cc
     serialize_json.cc
     widget.cc
+
+    $<$<PLATFORM_ID:Linux,Darwin>:file_unix.cc>
 )
 
 target_link_libraries(mncore
