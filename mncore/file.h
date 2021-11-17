@@ -192,23 +192,22 @@ class iFileStore {
   iFileStore& operator=(iFileStore&&) = delete;
 
 
-  iFile* Load(const std::string& url) {
+  std::shared_ptr<iFile> Load(const std::string& url) {
     auto itr = items_.find(url);
-    if (itr != items_.end()) return itr->second.get();
+    if (itr != items_.end()) return itr->second;
 
     auto file = Create(url);
     assert(file);
 
-    auto ptr = file.get();
-    items_[url] = std::move(file);
-    return ptr;
+    items_[url] = file;
+    return file;
   }
 
  protected:
-  virtual std::unique_ptr<iFile> Create(const std::string& url) = 0;
+  virtual std::shared_ptr<iFile> Create(const std::string& url) = 0;
 
  private:
-  std::unordered_map<std::string, std::unique_ptr<iFile>> items_;
+  std::unordered_map<std::string, std::shared_ptr<iFile>> items_;
 };
 
 

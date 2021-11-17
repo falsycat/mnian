@@ -63,7 +63,7 @@ class MockFileStore : public core::iFileStore {
   MockFileStore& operator=(MockFileStore&&) = delete;
 
 
-  MOCK_METHOD(std::unique_ptr<core::iFile>,
+  MOCK_METHOD(std::shared_ptr<core::iFile>,
               Create, (const std::string&), (override));
 };
 

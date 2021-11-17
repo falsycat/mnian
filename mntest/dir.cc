@@ -292,10 +292,10 @@ TEST(FileRef, ParseFlags) {
 }
 
 TEST(FileRef, Visit) {
-  MockFile file("test");
+  auto file = std::make_shared<::testing::StrictMock<MockFile>>("test");
 
   core::iDirItem::Store store;
-  core::FileRef fref(&store, &file, 0);
+  core::FileRef fref(&store, file, 0);
 
   ::testing::StrictMock<MockDirItemVisitor> visitor;
   EXPECT_CALL(visitor, VisitFile(&fref));
@@ -303,36 +303,36 @@ TEST(FileRef, Visit) {
 }
 
 TEST(FileRef, EntityUpdate) {
-  MockFile file("test");
+  auto file = std::make_shared<::testing::StrictMock<MockFile>>("test");
 
   core::iDirItem::Store store;
-  core::FileRef fref(&store, &file, 0);
+  core::FileRef fref(&store, file, 0);
 
   ::testing::StrictMock<MockDirItemObserver> observer(&fref);
   EXPECT_CALL(observer, ObserveUpdate());
-  file.NotifyUpdate();
+  file->NotifyUpdate();
 }
 
 TEST(FileRef, ReplaceEntity) {
-  MockFile file1("test");
-  MockFile file2("test");
+  auto file1 = std::make_shared<::testing::StrictMock<MockFile>>("test");
+  auto file2 = std::make_shared<::testing::StrictMock<MockFile>>("test");
 
   core::iDirItem::Store store;
-  core::FileRef fref(&store, &file1, 0);
-  ASSERT_EQ(&fref.entity(), &file1);
+  core::FileRef fref(&store, file1, 0);
+  ASSERT_EQ(fref.entity().get(), file1.get());
 
   ::testing::StrictMock<MockDirItemObserver> observer(&fref);
   EXPECT_CALL(observer, ObserveUpdate());
 
-  fref.ReplaceEntity(&file2);
-  ASSERT_EQ(&fref.entity(), &file2);
+  fref.ReplaceEntity(file2);
+  ASSERT_EQ(fref.entity().get(), file2.get());
 }
 
 TEST(FileRef, ModifyFlags) {
-  MockFile file("test");
+  auto file = std::make_shared<::testing::StrictMock<MockFile>>("test");
 
   core::iDirItem::Store store;
-  core::FileRef fref(&store, &file, 0);
+  core::FileRef fref(&store, file, 0);
   ASSERT_FALSE(fref.readable());
   ASSERT_FALSE(fref.writable());
 
@@ -395,9 +395,9 @@ TEST(iDirItemObserver, LosingTarget) {
   auto dir = std::make_unique<core::Dir>(&store);
   ASSERT_TRUE(dir);
 
-  MockFile file("test");
+  auto file = std::make_shared<::testing::StrictMock<MockFile>>("test");
   auto fref =
-      std::make_unique<core::FileRef>(&store, &file, core::FileRef::kNone);
+      std::make_unique<core::FileRef>(&store, file, core::FileRef::kNone);
   ASSERT_TRUE(fref);
 
   ::testing::StrictMock<MockDirItemObserver> observer(fref.get());
@@ -415,9 +415,9 @@ TEST(iDirItemObserver, Quitting) {
   auto dir = std::make_unique<core::Dir>(&store);
   ASSERT_TRUE(dir);
 
-  MockFile file("test");
+  auto file = std::make_shared<::testing::StrictMock<MockFile>>("test");
   auto fref =
-      std::make_unique<core::FileRef>(&store, &file, core::FileRef::kNone);
+      std::make_unique<core::FileRef>(&store, file, core::FileRef::kNone);
   ASSERT_TRUE(fref);
 
   {

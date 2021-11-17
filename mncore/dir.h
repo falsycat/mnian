@@ -385,7 +385,7 @@ class FileRef final : public iDirItem {
 
 
   FileRef() = delete;
-  FileRef(Tag&& tag, iFile* file, Flags flags) :
+  FileRef(Tag&& tag, std::shared_ptr<iFile> file, Flags flags) :
       iDirItem(kType, std::move(tag)),
       file_(file), flags_(flags), observer_(this) {
     assert(file_);
@@ -407,7 +407,7 @@ class FileRef final : public iDirItem {
   }
 
 
-  void ReplaceEntity(iFile* file) {
+  void ReplaceEntity(std::shared_ptr<iFile> file) {
     assert(file);
     if (file == file_) return;
 
@@ -429,8 +429,8 @@ class FileRef final : public iDirItem {
   }
 
 
-  iFile& entity() const {
-    return *file_;
+  std::shared_ptr<iFile> entity() const {
+    return file_;
   }
 
   bool readable() const {
@@ -447,7 +447,7 @@ class FileRef final : public iDirItem {
   class FileObserver : public iFileObserver {
    public:
     explicit FileObserver(FileRef* owner) :
-        iFileObserver(&owner->entity()), owner_(owner) {
+        iFileObserver(owner->entity().get()), owner_(owner) {
       assert(owner_);
     }
 
@@ -460,7 +460,7 @@ class FileRef final : public iDirItem {
   };
 
 
-  iFile* file_;
+  std::shared_ptr<iFile> file_;
 
   Flags flags_;
 
