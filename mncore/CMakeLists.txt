@@ -29,6 +29,7 @@ target_sources(mncore
     widget.cc
 
     $<$<PLATFORM_ID:Linux,Darwin>:file_unix.cc>
+    $<$<PLATFORM_ID:Windows>:file_win.cc>
 )
 
 target_link_libraries(mncore
