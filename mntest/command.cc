@@ -117,29 +117,29 @@ TEST(DirRemoveCommand, ApplyAndRevert) {
 }
 
 TEST(FileRefReplaceCommand, Replace) {
-  ::testing::StrictMock<MockFile> f1("file://f1");
-  ::testing::StrictMock<MockFile> f2("file://f2");
+  auto f1 = std::make_shared<::testing::StrictMock<MockFile>>("file://f1");
+  auto f2 = std::make_shared<::testing::StrictMock<MockFile>>("file://f2");
 
   core::ObjectStore<core::iDirItem> store;
-  core::FileRef fref(&store, &f1, core::FileRef::kReadable);
+  core::FileRef fref(&store, f1, core::FileRef::kReadable);
 
-  core::FileRefReplaceCommand cmd("", &fref, &f2);
+  core::FileRefReplaceCommand cmd("", &fref, f2);
 
   ASSERT_TRUE(cmd.Apply());
-  ASSERT_EQ(&fref.entity(), &f2);
+  ASSERT_EQ(fref.entity().get(), f2.get());
 
   ASSERT_TRUE(cmd.Revert());
-  ASSERT_EQ(&fref.entity(), &f1);
+  ASSERT_EQ(fref.entity().get(), f1.get());
 
   ASSERT_TRUE(cmd.Apply());
-  ASSERT_EQ(&fref.entity(), &f2);
+  ASSERT_EQ(fref.entity().get(), f2.get());
 }
 
 TEST(FileRefFlagCommand, SetFlag) {
-  ::testing::StrictMock<MockFile> f("file://f");
+  auto f = std::make_shared<::testing::StrictMock<MockFile>>("file://f");
 
   core::ObjectStore<core::iDirItem> store;
-  core::FileRef fref(&store, &f, core::FileRef::kNone);
+  core::FileRef fref(&store, f, core::FileRef::kNone);
 
   // This command makes it unreadable.
   core::FileRefFlagCommand cmd("", &fref, core::FileRef::kReadable, false);

@@ -40,10 +40,16 @@ class MockFile : public core::iFile {
   MockFile& operator=(MockFile&&) = delete;
 
 
-  MOCK_METHOD(bool, Watch, (), (const override));
-
   MOCK_METHOD(size_t, Read, (uint8_t*, size_t, size_t), (override));
   MOCK_METHOD(size_t, Write, (const uint8_t*, size_t, size_t), (override));
+  MOCK_METHOD(bool, Truncate, (size_t), (override));
+  MOCK_METHOD(bool, Flush, (), (override));
+
+  MOCK_METHOD(
+      std::filesystem::file_time_type, GetLastModified, (), (const override));
+
+
+  using iFile::NotifyUpdate;
 };
 
 class MockFileStore : public core::iFileStore {
@@ -57,7 +63,7 @@ class MockFileStore : public core::iFileStore {
   MockFileStore& operator=(MockFileStore&&) = delete;
 
 
-  MOCK_METHOD(std::unique_ptr<core::iFile>,
+  MOCK_METHOD(std::shared_ptr<core::iFile>,
               Create, (const std::string&), (override));
 };
 

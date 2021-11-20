@@ -20,7 +20,7 @@ class FileStore final : public core::iFileStore {
   FileStore& operator=(FileStore&&) = delete;
 
  protected:
-  std::unique_ptr<core::iFile> Create(const std::string&) override;
+  std::shared_ptr<core::iFile> Create(const std::string&) override;
 };
 
 }  // namespace mnian

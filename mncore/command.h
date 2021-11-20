@@ -350,14 +350,16 @@ class DirMoveCommand : public iCommand {
 // FileRefReplaceCommand is a command to replace an entity of FileRef.
 class FileRefReplaceCommand : public iCommand {
  public:
-  using Param = std::tuple<FileRef*, iFile*>;
+  using Param = std::tuple<FileRef*, std::shared_ptr<iFile>>;
 
 
   static std::optional<Param> DeserializeParam(iDeserializer*);
 
 
   FileRefReplaceCommand() = delete;
-  FileRefReplaceCommand(const char* type, FileRef* target, iFile* file) :
+  FileRefReplaceCommand(const char*            type,
+                        FileRef*               target,
+                        std::shared_ptr<iFile> file) :
       FileRefReplaceCommand(type, {target, file}) {
     assert(target);
     assert(file);
@@ -389,7 +391,7 @@ class FileRefReplaceCommand : public iCommand {
 
  private:
   void Swap() {
-    auto temp = &target_->entity();
+    auto temp = target_->entity();
     target_->ReplaceEntity(file_);
     file_ = temp;
   }
@@ -397,7 +399,7 @@ class FileRefReplaceCommand : public iCommand {
 
   FileRef* target_;
 
-  iFile* file_;
+  std::shared_ptr<iFile> file_;
 };
 
 

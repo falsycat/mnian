@@ -5,8 +5,10 @@
 
 #include <algorithm>
 #include <cassert>
+#include <filesystem>
 #include <memory>
 #include <mutex>  // NOLINT(build/c++11)
+#include <iostream>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -25,8 +27,8 @@ class iFile;
 class iFileObserver {
  public:
   iFileObserver() = delete;
-  inline explicit iFileObserver(iFile* target);
-  inline virtual ~iFileObserver();
+  explicit iFileObserver(iFile* target);
+  virtual ~iFileObserver();
 
   iFileObserver(const iFileObserver&) = delete;
   iFileObserver(iFileObserver&&) = delete;
@@ -87,18 +89,34 @@ class iFile {
 
     // Both Read and Write is available under any thread as long as LockGuard is
     // still alive. However don't call them concurrently.
-    size_t Read(uint8_t* buf, size_t n, size_t offset) {
+    size_t Read(uint8_t* buf, size_t n, size_t offset = 0) {
       assert(file_);
       return file_->Read(buf, n, offset);
     }
-    size_t Write(const uint8_t* buf, size_t n, size_t offset) {
+    size_t Write(const uint8_t* buf, size_t n, size_t offset = 0) {
       assert(file_);
       return file_->Write(buf, n, offset);
+    }
+    bool Truncate(size_t size) {
+      assert(file_);
+      return file_->Truncate(size);
+    }
+    bool Flush() {
+      assert(file_);
+      return file_->Flush();
+    }
+    void Watch() {
+      assert(file_);
+      file_->Watch();
     }
 
    private:
     iFile* file_;
   };
+
+
+  // Creates an instance of File that can read/write native files.
+  static std::unique_ptr<iFile> CreateForNative(const std::filesystem::path&);
 
 
   iFile() = delete;
@@ -115,17 +133,6 @@ class iFile {
   iFile& operator=(iFile&&) = delete;
 
 
-  // Returns whether the file is updated, and calls Touch() if it is.
-  virtual bool Watch() const = 0;
-
-
-  // Triggers all observers' ObserveUpdate() method.
-  void Touch() const {
-    for (auto observer : observers_) {
-      observer->ObserveUpdate();
-    }
-  }
-
   LockGuard Lock() {
     return LockGuard(this);
   }
@@ -134,17 +141,38 @@ class iFile {
   const std::string& url() const {
     return url_;
   }
+  const std::filesystem::file_time_type& lastModified() const {
+    return last_modified_;
+  }
 
  protected:
-  // It's guaranteed by caller that Read/Write methods are called under locked
-  // and one is not called when other is being called.
+  // Triggers all observers' ObserveUpdate() method.
+  void NotifyUpdate() const {
+    for (auto observer : observers_) {
+      observer->ObserveUpdate();
+    }
+  }
+
+  void Watch() {
+    const auto prev = last_modified_;
+    last_modified_ = GetLastModified();
+    if (prev < last_modified_) NotifyUpdate();
+  }
+
+
   virtual size_t Read(uint8_t* buf, size_t size, size_t offset = 0) = 0;
   virtual size_t Write(const uint8_t* buf, size_t size, size_t offset = 0) = 0;
+  virtual bool Truncate(size_t size) = 0;
+  virtual bool Flush() = 0;
+
+  virtual std::filesystem::file_time_type GetLastModified() const = 0;
 
  private:
   const std::string url_;
 
   std::vector<iFileObserver*> observers_;
+
+  std::filesystem::file_time_type last_modified_;
 
   std::mutex mutex_;
 };
@@ -164,33 +192,23 @@ class iFileStore {
   iFileStore& operator=(iFileStore&&) = delete;
 
 
-  iFile* Load(const std::string& url) {
+  std::shared_ptr<iFile> Load(const std::string& url) {
     auto itr = items_.find(url);
-    if (itr != items_.end()) return itr->second.get();
+    if (itr != items_.end()) return itr->second;
 
     auto file = Create(url);
     assert(file);
 
-    auto ptr = file.get();
-    items_[url] = std::move(file);
-    return ptr;
+    items_[url] = file;
+    return file;
   }
 
  protected:
-  virtual std::unique_ptr<iFile> Create(const std::string& url) = 0;
+  virtual std::shared_ptr<iFile> Create(const std::string& url) = 0;
 
  private:
-  std::unordered_map<std::string, std::unique_ptr<iFile>> items_;
+  std::unordered_map<std::string, std::shared_ptr<iFile>> items_;
 };
 
-
-iFileObserver::iFileObserver(iFile* target) : target_(target) {
-  assert(target);
-  target_->observers_.push_back(this);
-}
-iFileObserver::~iFileObserver() {
-  auto& obs = target_->observers_;
-  obs.erase(std::remove(obs.begin(), obs.end(), this), obs.end());
-}
 
 }  // namespace mnian::core
