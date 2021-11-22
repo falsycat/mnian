@@ -105,6 +105,7 @@ void App::Quit() {
 
 void App::Update() {
   ZoneScoped;
+  clock_.Tick();
 
   // app menu
   if (ImGui::BeginMainMenuBar()) {

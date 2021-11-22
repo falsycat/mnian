@@ -25,12 +25,15 @@ target_sources(mnian
     popup_input.cc
     popup_input.h
     registry.h
+    widget.cc
     widget.h
     widget_dir_tree.cc
     widget_dir_tree.h
     widget_dir_tree_command.h
     widget_history_tree.cc
     widget_history_tree.h
+    widget_node_terminal.cc
+    widget_node_terminal.h
     worker.cc
     worker.h
 )
