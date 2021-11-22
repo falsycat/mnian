@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "mncore/action.h"
@@ -55,10 +56,6 @@ class iNodeObserver {
   virtual void ObserveUpdate() {
   }
 
-  // Be called when the node's input or output socket gets open or close.
-  virtual void ObserveSocketChange() {
-  }
-
 
   iNode& target() const {
     return *target_;
@@ -84,21 +81,33 @@ class iNode : public iActionable, public iPolymorphicSerializable {
     friend class iNode;
 
 
+    using Value = iLambda::Value;
+
     enum Type {
       kInteger,
       kScalar,
       kString,
     };
 
-    enum State {
-      kOpen,    // shown and connectable
-      kClose,   // shown and not connectable
-      kHidden,  // hidden and not connectable
-    };
+
+    static Type GetTypeFromValue(const iLambda::Value& v) {
+      if (std::holds_alternative<int64_t>(v)) {
+        return kInteger;
+      }
+      if (std::holds_alternative<double>(v)) {
+        return kScalar;
+      }
+      if (std::holds_alternative<std::shared_ptr<std::string>>(v)) {
+        return kString;
+      }
+      assert(false);
+      return kInteger;
+    }
 
 
     Socket() = delete;
-    Socket(const std::string& name, Type type) : name_(name), type_(type) {
+    Socket(const std::string& name, Value&& def) :
+        name_(name), type_(GetTypeFromValue(def)), def_(std::move(def)) {
     }
 
     Socket(const Socket&) = default;
@@ -107,10 +116,6 @@ class iNode : public iActionable, public iPolymorphicSerializable {
     Socket& operator=(const Socket&) = default;
     Socket& operator=(Socket&&) = default;
 
-
-    void Update(State state) {
-      state_ = state;
-    }
 
     bool Match(const Socket& other) const {
       return type_ == other.type_;
@@ -123,8 +128,8 @@ class iNode : public iActionable, public iPolymorphicSerializable {
     Type type() const {
       return type_;
     }
-    State state() const {
-      return state_;
+    const Value& def() const {
+      return def_;
     }
 
    private:
@@ -132,7 +137,7 @@ class iNode : public iActionable, public iPolymorphicSerializable {
 
     Type type_;
 
-    State state_ = kClose;
+    Value def_;
   };
 
 
@@ -166,7 +171,7 @@ class iNode : public iActionable, public iPolymorphicSerializable {
 
   virtual std::unique_ptr<iNode> Clone() = 0;
 
-  virtual std::shared_ptr<iTask> QueueTask() = 0;
+  virtual std::shared_ptr<iLambda> QueueLambda() = 0;
 
 
   ObjectId id() const {
@@ -199,17 +204,14 @@ class iNode : public iActionable, public iPolymorphicSerializable {
       observer->ObserveUpdate();
     }
   }
-  void NotifySocketChange() {
-    for (auto observer : observers_) {
-      observer->ObserveSocketChange();
-    }
-  }
 
-  Socket* input() {
-    return &input_[0];
+  Socket& input(size_t i) {
+    assert(i < input_.size());
+    return input_[i];
   }
-  Socket* output() {
-    return &output_[0];
+  Socket& output(size_t i) {
+    assert(i < output_.size());
+    return output_[i];
   }
 
  private:

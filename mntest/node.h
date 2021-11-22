@@ -30,7 +30,6 @@ class MockNodeObserver : public core::iNodeObserver {
   MOCK_METHOD(void, ObserveRemove,       (), (override));
   MOCK_METHOD(void, ObserveDelete,       (), (override));
   MOCK_METHOD(void, ObserveUpdate,       (), (override));
-  MOCK_METHOD(void, ObserveSocketChange, (), (override));
 };
 
 class MockNode : public core::iNode {
@@ -55,7 +54,7 @@ class MockNode : public core::iNode {
 
 
   MOCK_METHOD(std::unique_ptr<core::iNode>, Clone, (), (override));
-  MOCK_METHOD(std::shared_ptr<core::iTask>, QueueTask, (), (override));
+  MOCK_METHOD(std::shared_ptr<core::iLambda>, QueueLambda, (), (override));
 
   MOCK_METHOD(void, SerializeParam, (core::iSerializer*), (const override));
 
