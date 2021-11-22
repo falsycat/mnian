@@ -164,6 +164,10 @@ class iLambda : public iTask {
   }
 
  protected:
+  const Value& in(size_t i) {
+    std::lock_guard<std::mutex> _(mtx_);
+    return in_[i].value();
+  }
   template <typename T>
   const T& in(size_t i) {
     std::lock_guard<std::mutex> _(mtx_);
