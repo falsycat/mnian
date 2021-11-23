@@ -223,31 +223,4 @@ class iNode : public iActionable, public iPolymorphicSerializable {
   std::vector<iNodeObserver*> observers_;
 };
 
-
-// An interface of factory that creates Node instance.
-class iNodeFactory : public iActionable {
- public:
-  iNodeFactory() = delete;
-  iNodeFactory(ActionList&& actions, const std::string& name) :
-      iActionable(std::move(actions)), name_(name) {
-  }
-
-  iNodeFactory(const iNodeFactory&) = delete;
-  iNodeFactory(iNodeFactory&&) = delete;
-
-  iNodeFactory& operator=(const iNodeFactory&) = delete;
-  iNodeFactory& operator=(iNodeFactory&&) = delete;
-
-
-  virtual std::unique_ptr<iNode> Create() = 0;
-
-
-  const std::string& name() const {
-    return name_;
-  }
-
- private:
-  std::string name_;
-};
-
 }  // namespace mnian::core

@@ -62,20 +62,4 @@ class MockNode : public core::iNode {
   using iNode::NotifyUpdate;
 };
 
-class MockNodeFactory : public core::iNodeFactory {
- public:
-  explicit MockNodeFactory(const std::string& name = "") :
-      iNodeFactory(ActionList {}, name) {
-  }
-
-  MockNodeFactory(const MockNodeFactory&) = delete;
-  MockNodeFactory(MockNodeFactory&&) = delete;
-
-  MockNodeFactory& operator=(const MockNodeFactory&) = delete;
-  MockNodeFactory& operator=(MockNodeFactory&&) = delete;
-
-
-  MOCK_METHOD(std::unique_ptr<core::iNode>, Create, (), (override));
-};
-
 }  // namespace mnian::test
