@@ -1,30 +1,34 @@
-#: ../mnian/app.cc:59
+#: ../mnian/app.cc:62
 msgid "failed to open file"
 msgstr ""
 
-#: ../mnian/app.cc:67
+#: ../mnian/app.cc:73
 msgid "failed to parse JSON"
 msgstr ""
 
-#: ../mnian/app.cc:71
+#: ../mnian/app.cc:77
 msgid "failed to load existing project"
 msgstr ""
 
-#: ../mnian/app.cc:105
+#: ../mnian/app.cc:112
 msgid "App"
 msgstr ":fa5_stream: App"
 
-#: ../mnian/app.cc:106
+#: ../mnian/app.cc:113
 msgid "Save"
 msgstr ":fa5_save: Save"
 
-#: ../mnian/app.cc:107
+#: ../mnian/app.cc:114
 msgid "Quit"
 msgstr ":fa5_times_circle: Quit"
 
-#: ../mnian/app.cc:125
+#: ../mnian/app.cc:132
 msgid "ABORT"
 msgstr "ABORT"
+
+#: ../mnian/command.h:43
+msgid "origin of the history"
+msgstr ""
 
 #: ../mnian/popup_input.cc:47
 #, c-format
@@ -39,20 +43,24 @@ msgstr ":fa5_check_circle: good"
 msgid "OK"
 msgstr ""
 
-#: ../mnian/widget_dir_tree.cc:82
+#: ../mnian/widget.cc:13
+msgid "(no actions)"
+msgstr ""
+
+#: ../mnian/widget_dir_tree.cc:85
 msgid "Enter new name: "
 msgstr ":fa5_edit: Enter new name: "
 
-#: ../mnian/widget_dir_tree.cc:105
+#: ../mnian/widget_dir_tree.cc:108
 msgid "[ROOT]"
 msgstr ":fa5_chess_king: ROOT"
 
-#: ../mnian/widget_dir_tree.cc:123
-#, fuzzy, c-format
+#: ../mnian/widget_dir_tree.cc:126
+#, c-format
 msgid "[D] %s"
 msgstr ":fa5_folder: %s"
 
-#: ../mnian/widget_dir_tree.cc:128
+#: ../mnian/widget_dir_tree.cc:131
 #, c-format
 msgid ""
 "path: %s\n"
@@ -60,105 +68,193 @@ msgid ""
 "size: %zu"
 msgstr ""
 
-#: ../mnian/widget_dir_tree.cc:162
+#: ../mnian/widget_dir_tree.cc:165
 #, c-format
 msgid "[N] %s"
 msgstr ":fa5_puzzle_piece: %s"
 
-#: ../mnian/widget_dir_tree.cc:166
+#: ../mnian/widget_dir_tree.cc:169
 msgid "type: node"
 msgstr ""
 
-#: ../mnian/widget_dir_tree.cc:183
+#: ../mnian/widget_dir_tree.cc:186
 #, c-format
 msgid "[F] %s"
 msgstr ":fa5_file: %s"
 
-#: ../mnian/widget_dir_tree.cc:187
+#: ../mnian/widget_dir_tree.cc:190
 msgid "type: file"
 msgstr ""
 
-#: ../mnian/widget_dir_tree.cc:305
+#: ../mnian/widget_dir_tree.cc:309
 #, c-format
 msgid "DirItem (%s)"
 msgstr ""
 
-#: ../mnian/widget_dir_tree.cc:331
+#: ../mnian/widget_dir_tree.cc:335
 msgid "isn't your parent you?"
 msgstr ""
 
-#: ../mnian/widget_dir_tree.cc:333
+#: ../mnian/widget_dir_tree.cc:337
 msgid "changes nothing"
 msgstr ""
 
-#: ../mnian/widget_dir_tree.cc:335
+#: ../mnian/widget_dir_tree.cc:339
 msgid "name duplication"
 msgstr ""
 
-#: ../mnian/widget_dir_tree.cc:337
+#: ../mnian/widget_dir_tree.cc:341
 msgid "move to here?"
 msgstr ""
 
-#: ../mnian/widget_dir_tree.cc:346
+#: ../mnian/widget_dir_tree.cc:350
 msgid "Insert"
 msgstr ":fa5_greater_than: Insert"
 
-#: ../mnian/widget_dir_tree.cc:352
+#: ../mnian/widget_dir_tree.cc:356
 msgid "Add"
 msgstr ":fa5_plus: Add"
 
-#: ../mnian/widget_dir_tree.cc:358
+#: ../mnian/widget_dir_tree.cc:362
 msgid "new directory"
 msgstr ":fa5_folder: new directory"
 
-#: ../mnian/widget_dir_tree.cc:362
+#: ../mnian/widget_dir_tree.cc:367
 msgid "new node"
 msgstr ":fa5_puzzle_piece: new node"
 
-#: ../mnian/widget_dir_tree.cc:365
+#: ../mnian/widget_dir_tree.cc:370
 msgid "new file"
 msgstr ":fa5_file: new file"
 
-#: ../mnian/widget_dir_tree.cc:366
+#: ../mnian/widget_dir_tree.cc:371
 msgid "from existing native file"
 msgstr ":fa5_external_link_alt: from existing native file"
 
-#: ../mnian/widget_dir_tree.cc:369
+#: ../mnian/widget_dir_tree.cc:374
 msgid "from new native file"
 msgstr ":fa5_plus_square: from new native file"
 
-#: ../mnian/widget_dir_tree.cc:372
+#: ../mnian/widget_dir_tree.cc:377
 msgid "from URL"
 msgstr ":fa5_link: from URL"
 
-#: ../mnian/widget_dir_tree.cc:379
+#: ../mnian/widget_dir_tree.cc:384
 msgid "Rename"
 msgstr ":fa5_edit: Rename"
 
-#: ../mnian/widget_dir_tree.cc:382
+#: ../mnian/widget_dir_tree.cc:387
 msgid "Clone"
 msgstr ":fa5_clone: Clone"
 
-#: ../mnian/widget_dir_tree.cc:385
+#: ../mnian/widget_dir_tree.cc:390
 msgid "Remove"
 msgstr ":fa5_minus: Remove"
 
-#: ../mnian/widget_dir_tree.cc:393
+#: ../mnian/widget_dir_tree.cc:398
 msgid "Remove selected items"
 msgstr ":fa5_minus_square: Remove selected items"
 
-#: ../mnian/widget_dir_tree.cc:400
+#: ../mnian/widget_dir_tree.cc:405
 msgid "Deselect"
 msgstr "   Deselect"
 
-#: ../mnian/widget_dir_tree.cc:405
+#: ../mnian/widget_dir_tree.cc:410
 msgid "Select"
 msgstr ":fa5_square: Select"
 
-#: ../mnian/widget_dir_tree.cc:411
+#: ../mnian/widget_dir_tree.cc:416
 msgid "Deselect all"
 msgstr "   Deselect all"
 
-#: ../mnian/widget_dir_tree.cc:416
+#: ../mnian/widget_dir_tree.cc:421
 msgid "Select all siblings"
 msgstr "   Select all siblings"
+
+#: ../mnian/widget_dir_tree_command.h:66
+msgid "Adds an item to the directory."
+msgstr ""
+
+#: ../mnian/widget_dir_tree_command.h:138
+msgid "Removes an item from the directory."
+msgstr ""
+
+#: ../mnian/widget_dir_tree_command.h:191
+msgid "Moves an item of the directory."
+msgstr ""
+
+#: ../mnian/widget_node_terminal.cc:59
+msgid "node info"
+msgstr ":fa5_info_circle: NODE"
+
+#: ../mnian/widget_node_terminal.cc:66
+msgid "input"
+msgstr ":fa5_angle_double_right: INPUT"
+
+#: ../mnian/widget_node_terminal.cc:81
+msgid "output"
+msgstr ":fa5_angle_double_left: OUTPUT"
+
+#: ../mnian/widget_node_terminal.cc:87
+msgid "execution"
+msgstr ":fa5_running: Execution"
+
+#: ../mnian/widget_node_terminal.cc:102
+msgid "actions"
+msgstr ":fa5_bolt: Action"
+
+#: ../mnian/widget_node_terminal.cc:103
+msgid "execute"
+msgstr ":fa5_running: Execute"
+
+#: ../mnian/widget_node_terminal.cc:106
+msgid "abort execution"
+msgstr ":fa5_ban: Abort execution"
+
+#: ../mnian/widget_node_terminal.cc:110
+msgid "clear input"
+msgstr ":fa5_eraser: Clear input"
+
+#: ../mnian/widget_node_terminal.cc:114
+msgid "clone widget"
+msgstr ":fa5_clone: Clone this widget"
+
+#: ../mnian/widget_node_terminal.cc:119
+msgid "node actions"
+msgstr ":fa5_puzzle_piece: Node"
+
+#: ../mnian/widget_node_terminal.cc:123
+msgid "options"
+msgstr ":fa5_cog: Option"
+
+#: ../mnian/widget_node_terminal.cc:125
+msgid "enable auto execution on change"
+msgstr ":fa5_running: Enable auto execution"
+
+#: ../mnian/widget_node_terminal.cc:285
+msgid "idle"
+msgstr ":fa5_bed: IDLE"
+
+#: ../mnian/widget_node_terminal.cc:289
+msgid "pending"
+msgstr ":fa5_layer_group: PENDING"
+
+#: ../mnian/widget_node_terminal.cc:291
+msgid "running"
+msgstr ":fa5_running: RUNNING"
+
+#: ../mnian/widget_node_terminal.cc:293
+msgid "finished"
+msgstr ":fa5_check: DONE"
+
+#: ../mnian/widget_node_terminal.cc:295
+msgid "aborted"
+msgstr ":fa5_ban: ABORTED"
+
+#: ../mnian/widget_node_terminal_command.h:123
+msgid "Modify input parameters on NodeTerminal."
+msgstr ""
+
+#: ../mnian/widget_node_terminal_command.h:197
+msgid "Clear all inputs."
+msgstr ""

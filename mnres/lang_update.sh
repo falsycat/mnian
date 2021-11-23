@@ -14,7 +14,7 @@ xgettext  \
   --omit-header  \
   --output=temp.pot  \
   --sort-by-file  \
-  $(find ../mnian/ -name "*.cc")
+  $(find ../mnian/ -name "*.cc" -or -name "*.h")
 
 msgmerge  \
   -U  \
