@@ -70,75 +70,14 @@ class iNodeObserver {
 class iNode : public iActionable, public iPolymorphicSerializable {
  public:
   friend class iNodeObserver;
-  friend class NodeStore;
 
 
   using Store = ObjectStore<iNode>;
   using Tag   = Store::Tag;
 
-  struct Socket {
-   public:
-    friend class iNode;
+  using Value = iLambda::Value;
 
-
-    using Value = iLambda::Value;
-
-    enum Type {
-      kInteger,
-      kScalar,
-      kString,
-    };
-
-
-    static Type GetTypeFromValue(const iLambda::Value& v) {
-      if (std::holds_alternative<int64_t>(v)) {
-        return kInteger;
-      }
-      if (std::holds_alternative<double>(v)) {
-        return kScalar;
-      }
-      if (std::holds_alternative<std::shared_ptr<std::string>>(v)) {
-        return kString;
-      }
-      assert(false);
-      return kInteger;
-    }
-
-
-    Socket() = delete;
-    Socket(const std::string& name, Value&& def) :
-        name_(name), type_(GetTypeFromValue(def)), def_(std::move(def)) {
-    }
-
-    Socket(const Socket&) = default;
-    Socket(Socket&&) = default;
-
-    Socket& operator=(const Socket&) = default;
-    Socket& operator=(Socket&&) = default;
-
-
-    bool Match(const Socket& other) const {
-      return type_ == other.type_;
-    }
-
-
-    const std::string& name() const {
-      return name_;
-    }
-    Type type() const {
-      return type_;
-    }
-    const Value& def() const {
-      return def_;
-    }
-
-   private:
-    std::string name_;
-
-    Type type_;
-
-    Value def_;
-  };
+  class Socket;
 
 
   // Deserializes an id integer and returns a pointer to the node.
@@ -146,13 +85,9 @@ class iNode : public iActionable, public iPolymorphicSerializable {
 
 
   iNode() = delete;
-  iNode(ActionList&&          actions,
-        const char*           type,
-        Tag&&                 tag,
-        std::vector<Socket>&& in,
-        std::vector<Socket>&& out) :
+  iNode(ActionList&& actions, const char* type, Tag&& tag) :
       iActionable(std::move(actions)), iPolymorphicSerializable(type),
-      tag_(std::move(tag)), input_(std::move(in)), output_(std::move(out)) {
+      tag_(std::move(tag)) {
     tag_.Attach(this);
   }
   ~iNode() {
@@ -174,6 +109,9 @@ class iNode : public iActionable, public iPolymorphicSerializable {
   virtual std::shared_ptr<iLambda> QueueLambda() = 0;
 
 
+  std::unordered_map<const Socket*, size_t> CreateSocketIndexMap() const;
+
+
   ObjectId id() const {
     return tag_.id();
   }
@@ -181,11 +119,20 @@ class iNode : public iActionable, public iPolymorphicSerializable {
     return tag_;
   }
 
-  const std::vector<Socket>& input() const {
-    return input_;
+  size_t inputCount() const {
+    return input_.size();
   }
-  const std::vector<Socket>& output() const {
-    return output_;
+  size_t outputCount() const {
+    return input_.size();
+  }
+
+  const Socket& input(size_t i) const {
+    assert(i < input_.size());
+    return *input_[i];
+  }
+  const Socket& output(size_t i) const {
+    assert(i < output_.size());
+    return *output_[i];
   }
 
  protected:
@@ -205,22 +152,101 @@ class iNode : public iActionable, public iPolymorphicSerializable {
     }
   }
 
-  Socket& input(size_t i) {
-    assert(i < input_.size());
-    return input_[i];
+  auto& input() {
+    return input_;
   }
-  Socket& output(size_t i) {
-    assert(i < output_.size());
-    return output_[i];
+  auto& output() {
+    return output_;
   }
 
  private:
   Tag tag_;
 
-  std::vector<Socket> input_;
-  std::vector<Socket> output_;
+  std::vector<std::unique_ptr<Socket>> input_;
+  std::vector<std::unique_ptr<Socket>> output_;
 
   std::vector<iNodeObserver*> observers_;
+};
+
+
+class iNode::Socket final {
+ public:
+  enum Type {
+    kInteger,
+    kScalar,
+    kVec2,
+    kVec3,
+    kVec4,
+    kTensor,
+    kString,
+  };
+
+  // Don't forget that Meta is just a request for input supplier, and the actual
+  // input is not limited strictly.
+  struct Meta {
+    std::string name;
+    std::string description = "";
+
+    const char* purpose = "";
+
+    // for kInteger and kScalar
+    double min = 0.;
+    double max = 0.;  // When min == max, there's no restriction.
+
+    // for kString
+    bool multiline = false;
+  };
+
+
+  static Type GetTypeFromValue(const iLambda::Value& v) {
+    if (std::holds_alternative<int64_t>(v)) {
+      return kInteger;
+    }
+    if (std::holds_alternative<double>(v)) {
+      return kScalar;
+    }
+    if (std::holds_alternative<std::shared_ptr<std::string>>(v)) {
+      return kString;
+    }
+    assert(false);
+    return kInteger;
+  }
+
+
+  Socket() = delete;
+  Socket(size_t index, Meta&& meta, Value&& def) :
+      index_(index),
+      type_(GetTypeFromValue(def)),
+      meta_(std::move(meta)),
+      def_(std::move(def)) {
+  }
+
+  Socket(const Socket&) = delete;
+  Socket(Socket&&) = delete;
+
+  Socket& operator=(const Socket&) = delete;
+  Socket& operator=(Socket&&) = delete;
+
+
+  size_t index() const {
+    return index_;
+  }
+  Type type() const {
+    return type_;
+  }
+  const Meta& meta() const {
+    return meta_;
+  }
+  const Value& def() const {
+    return def_;
+  }
+
+ private:
+  size_t index_;
+
+  Type  type_;
+  Meta  meta_;
+  Value def_;
 };
 
 }  // namespace mnian::core

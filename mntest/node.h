@@ -36,14 +36,8 @@ class MockNode : public core::iNode {
  public:
   static constexpr const char* kType = "MockNode";
 
-  explicit MockNode(Tag&&                 tag,
-                    std::vector<Socket>&& in  = {},
-                    std::vector<Socket>&& out = {}) :
-      iNode(ActionList {},
-            kType,
-            std::move(tag),
-            std::move(in),
-            std::move(out)) {
+
+  explicit MockNode(Tag&& tag) : iNode(ActionList {}, kType, std::move(tag)) {
   }
 
   MockNode(const MockNode&) = delete;

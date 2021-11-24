@@ -25,4 +25,17 @@ iNode* iNode::DeserializeRef(iDeserializer* des) {
   return id? store.Find(*id): nullptr;
 }
 
+
+std::unordered_map<const iNode::Socket*, size_t>
+iNode::CreateSocketIndexMap() const {
+  std::unordered_map<const iNode::Socket*, size_t> ret;
+  for (size_t i = 0; i < input_.size(); ++i) {
+    ret[input_[i].get()] = i;
+  }
+  for (size_t i = 0; i < output_.size(); ++i) {
+    ret[output_[i].get()] = i;
+  }
+  return ret;
+}
+
 }  // namespace mnian::core
