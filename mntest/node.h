@@ -48,7 +48,7 @@ class MockNode : public core::iNode {
 
 
   MOCK_METHOD(std::unique_ptr<core::iNode>, Clone, (), (override));
-  MOCK_METHOD(std::shared_ptr<core::iLambda>, QueueLambda, (), (override));
+  MOCK_METHOD(ProcessRef, EnqueueLambda, (), (override));
 
   MOCK_METHOD(void, SerializeParam, (core::iSerializer*), (const override));
 

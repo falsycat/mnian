@@ -4,8 +4,10 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <memory>
+#include <mutex>  // NOLINT(build/c++11)
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -78,6 +80,8 @@ class iNode : public iActionable, public iPolymorphicSerializable {
   using Value = iLambda::Value;
 
   class Socket;
+  class Process;
+  class ProcessRef;
 
 
   // Deserializes an id integer and returns a pointer to the node.
@@ -106,7 +110,7 @@ class iNode : public iActionable, public iPolymorphicSerializable {
 
   virtual std::unique_ptr<iNode> Clone() = 0;
 
-  virtual std::shared_ptr<iLambda> QueueLambda() = 0;
+  virtual ProcessRef EnqueueLambda() = 0;
 
 
   std::unordered_map<const Socket*, size_t> CreateSocketIndexMap() const;
@@ -247,6 +251,120 @@ class iNode::Socket final {
   Type  type_;
   Meta  meta_;
   Value def_;
+};
+
+class iNode::Process final {
+ public:
+  enum State {
+    kPending,
+    kRunning,
+    kFinished,
+    kAborted,
+  };
+
+
+  Process() = default;
+
+  Process(const Process&) = delete;
+  Process(Process&&) = delete;
+
+  Process& operator=(const Process&) = delete;
+  Process& operator=(Process&&) = delete;
+
+
+  void RequestAbort() {
+    abort_ = true;
+  }
+
+
+  bool abort() const {
+    return abort_;
+  }
+
+  void state(State next) {
+    state_ = next;
+  }
+  State state() const {
+    return state_;
+  }
+
+  void progress(double f) {
+    progress_ = f;
+  }
+  double progress() const {
+    return progress_;
+  }
+
+  void msg(const std::string& msg) {
+    std::lock_guard<std::mutex> _(mtx_);
+    msg_ = msg;
+  }
+  std::string msg() const {
+    std::lock_guard<std::mutex> _(const_cast<std::mutex&>(mtx_));
+    return msg_;
+  }
+
+ private:
+  std::mutex mtx_;
+
+  std::atomic<bool> abort_ = false;
+
+  std::atomic<State> state_ = kPending;
+
+  std::atomic<double> progress_ = 0.;
+
+  std::string msg_;
+};
+
+class iNode::ProcessRef final {
+ public:
+  ProcessRef() = default;
+  explicit ProcessRef(std::shared_ptr<iLambda> lambda,
+                      std::shared_ptr<Process> proc) :
+      lambda_(std::move(lambda)), proc_(std::move(proc)) {
+    assert(lambda_);
+    assert(proc_);
+  }
+
+  ProcessRef(const ProcessRef&) = delete;
+  ProcessRef(ProcessRef&&) = default;
+
+  ProcessRef& operator=(const ProcessRef&) = delete;
+  ProcessRef& operator=(ProcessRef&&) = default;
+
+
+  void RequestAbort() {
+    proc_->RequestAbort();
+  }
+
+
+  bool busy() const {
+    return proc_ &&
+        state() != Process::kFinished &&
+        state() != Process::kAborted;
+  }
+  bool empty() const {
+    return !proc_;
+  }
+
+  const std::shared_ptr<iLambda>& lambda() const {
+    return lambda_;
+  }
+
+  Process::State state() const {
+    return proc_->state();
+  }
+  double progress() const {
+    return proc_->progress();
+  }
+  std::string msg() const {
+    return proc_->msg();
+  }
+
+ private:
+  std::shared_ptr<iLambda> lambda_;
+
+  std::shared_ptr<Process> proc_;
 };
 
 }  // namespace mnian::core
