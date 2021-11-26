@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "mncore/action.h"
+#include "mncore/conv.h"
 #include "mncore/serialize.h"
 #include "mncore/store.h"
 #include "mncore/task.h"
@@ -76,8 +77,6 @@ class iNode : public iActionable, public iPolymorphicSerializable {
 
   using Store = ObjectStore<iNode>;
   using Tag   = Store::Tag;
-
-  using Value = iLambda::Value;
 
   class Socket;
   class Process;
@@ -202,7 +201,7 @@ class iNode::Socket final {
   };
 
 
-  static Type GetTypeFromValue(const iLambda::Value& v) {
+  static Type GetTypeFromValue(const SharedAny& v) {
     if (std::holds_alternative<int64_t>(v)) {
       return kInteger;
     }
@@ -218,7 +217,7 @@ class iNode::Socket final {
 
 
   Socket() = delete;
-  Socket(size_t index, Meta&& meta, Value&& def) :
+  Socket(size_t index, Meta&& meta, SharedAny&& def) :
       index_(index),
       type_(GetTypeFromValue(def)),
       meta_(std::move(meta)),
@@ -241,16 +240,16 @@ class iNode::Socket final {
   const Meta& meta() const {
     return meta_;
   }
-  const Value& def() const {
+  const SharedAny& def() const {
     return def_;
   }
 
  private:
   size_t index_;
 
-  Type  type_;
-  Meta  meta_;
-  Value def_;
+  Type      type_;
+  Meta      meta_;
+  SharedAny def_;
 };
 
 class iNode::Process final {
