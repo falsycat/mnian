@@ -68,13 +68,14 @@ class DirTreeWidget::DirAddCommand final : public core::DirAddCommand {
 
  protected:
   void SerializeParam(core::iSerializer* serial) const override {
-    serial->SerializeMap(size_t{2});
+    core::iSerializer::MapGuard root(serial);
 
-    serial->SerializeKey("super");
-    core::DirAddCommand::SerializeParam(serial);
-
-    serial->SerializeKey("widget");
-    serial->SerializeValue(static_cast<int64_t>(w_->id()));
+    root.Add(
+        "super",
+        [this, serial]() {
+          core::DirAddCommand::SerializeParam(serial);
+        });
+    root.Add("widget", static_cast<int64_t>(w_->id()));
   }
 
  private:
@@ -139,13 +140,14 @@ class DirTreeWidget::DirRemoveCommand final : public core::DirRemoveCommand {
 
  protected:
   void SerializeParam(core::iSerializer* serial) const override {
-    serial->SerializeMap(size_t{2});
+    core::iSerializer::MapGuard root(serial);
 
-    serial->SerializeKey("super");
-    core::DirRemoveCommand::SerializeParam(serial);
-
-    serial->SerializeKey("widget");
-    serial->SerializeValue(static_cast<int64_t>(w_->id()));
+    root.Add(
+        "super",
+        [this, serial]() {
+          core::DirRemoveCommand::SerializeParam(serial);
+        });
+    root.Add("widget", static_cast<int64_t>(w_->id()));
   }
 
  private:

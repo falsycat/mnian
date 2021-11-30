@@ -116,19 +116,19 @@ void History::Item::Serialize(
     const std::unordered_map<iCommand*, size_t>& idx) const {
   assert(serial);
 
-  serial->SerializeMap(size_t{3});
+  iSerializer::MapGuard root(serial);
 
-  serial->SerializeKey("createdAt");
-  serial->SerializeValue(static_cast<int64_t>(created_at_));
+  root.Add("createdAt", static_cast<int64_t>(created_at_));
 
-  serial->SerializeKey("branch");
-  serial->SerializeArray(branch_.size());
-  for (const auto& child : branch_) child->Serialize(serial, idx);
+  root.Add(
+      "branch",
+      [this, serial, &idx]() {
+        serial->SerializeArray(branch_.size());
+        for (const auto& child : branch_) child->Serialize(serial, idx);
+      });
 
   assert(idx.contains(command_.get()));
-
-  serial->SerializeKey("command");
-  serial->SerializeValue(static_cast<int64_t>(idx.at(command_.get())));
+  root.Add("command", static_cast<int64_t>(idx.at(command_.get())));
 }
 
 
@@ -219,25 +219,34 @@ void History::Serialize(iSerializer* serial) const {
   std::vector<iCommand*> cmds;
   head_->SerializePastCommands(&cmds, &idx);
 
-  serial->SerializeMap(size_t{3});
+  iSerializer::MapGuard root(serial);
 
-  serial->SerializeKey("commands");
-  serial->SerializeArray(cmds.size());
-  for (const auto& cmd : cmds) cmd->Serialize(serial);
+  root.Add(
+      "commands",
+      [serial, &cmds]() {
+        serial->SerializeArray(cmds.size());
+        for (const auto& cmd : cmds) cmd->Serialize(serial);
+      });
 
-  serial->SerializeKey("origin");
-  serial->SerializeArray(origin_->branch().size());
-  for (const auto& item : origin_->branch()) {
-    item->Serialize(serial, idx);
-  }
+  root.Add(
+      "origin",
+      [this, serial, &idx]() {
+        serial->SerializeArray(origin_->branch().size());
+        for (const auto& item : origin_->branch()) {
+          item->Serialize(serial, idx);
+        }
+      });
 
-  serial->SerializeKey("head");
-  auto head = head_->GeneratePath();
-  serial->SerializeArray(head.size());
-  while (!head.empty()) {
-    serial->SerializeValue(static_cast<int64_t>(head.top()));
-    head.pop();
-  }
+  root.Add(
+      "head",
+      [this, serial]() {
+        auto head = head_->GeneratePath();
+        serial->SerializeArray(head.size());
+        while (!head.empty()) {
+          serial->SerializeValue(static_cast<int64_t>(head.top()));
+          head.pop();
+        }
+      });
 }
 
 }  // namespace mnian::core

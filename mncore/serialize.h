@@ -89,9 +89,6 @@ class iSerializer {
   // ```
   class MapGuard final : public iSerializable {
    public:
-    using Item = std::variant<Any, const iSerializable*>;
-
-
     MapGuard() = delete;
     explicit MapGuard(iSerializer* serializer) : serializer_(serializer) {
       assert(serializer_);
@@ -111,19 +108,22 @@ class iSerializer {
     MapGuard& operator=(MapGuard&&) = delete;
 
 
-    void Add(const std::string& key, Any&& value) {
+    void Add(const std::string& key, std::function<void()>&& func) {
       assert(serializer_);
-      items_.emplace_back(key, std::move(value));
-    }
-    void Add(const std::string& key, const Any& value) {
-      assert(serializer_);
-      items_.emplace_back(key, value);
+      items_.emplace_back(key, std::move(func));
     }
 
-    // The serializable object must be alive longer than `this`.
-    void Add(const std::string& key, const iSerializable* serializable) {
-      assert(serializer_);
-      items_.emplace_back(key, serializable);
+    void Add(const std::string& key, Any&& v) {
+      Add(key,
+          [this, v = std::move(v)]() {
+            serializer_->SerializeValue(std::move(v));
+          });
+    }
+    void Add(const std::string& key, const Any& v) {
+      Add(key, [this, v]() { serializer_->SerializeValue(v); });
+    }
+    void Add(const std::string& key, const iSerializable* s) {
+      Add(key, [this, s]() { s->Serialize(serializer_); });
     }
 
    protected:
@@ -132,7 +132,7 @@ class iSerializer {
    private:
     iSerializer* serializer_;
 
-    std::vector<std::pair<std::string, Item>> items_;
+    std::vector<std::pair<std::string, std::function<void()>>> items_;
   };
 
   // ArrayGuard can provide a way as a scope guard to serialize array object
@@ -150,9 +150,6 @@ class iSerializer {
   // ```
   class ArrayGuard final : public iSerializable {
    public:
-    using Item = std::variant<Any, const iSerializable*>;
-
-
     ArrayGuard() = delete;
     explicit ArrayGuard(iSerializer* serial) : serializer_(serial) {
       assert(serializer_);
@@ -172,16 +169,21 @@ class iSerializer {
     ArrayGuard& operator=(ArrayGuard&&) = delete;
 
 
-    void Add(Any&& value) {
-      items_.emplace_back(std::move(value));
-    }
-    void Add(const Any& value) {
-      items_.emplace_back(value);
+    void Add(std::function<void()>&& func) {
+      assert(serializer_);
+      items_.emplace_back(std::move(func));
     }
 
-    // The serializable object must be alive longer than `this`.
-    void Add(const iSerializable* serializable) {
-      items_.emplace_back(serializable);
+    void Add(Any&& v) {
+      Add([this, v = std::move(v)]() {
+            serializer_->SerializeValue(std::move(v));
+          });
+    }
+    void Add(const Any& v) {
+      Add([this, v]() { serializer_->SerializeValue(v); });
+    }
+    void Add(const iSerializable* s) {
+      Add([this, s]() { s->Serialize(serializer_); });
     }
 
    protected:
@@ -190,7 +192,7 @@ class iSerializer {
    private:
     iSerializer* serializer_;
 
-    std::vector<Item> items_;
+    std::vector<std::function<void()>> items_;
   };
 
 
