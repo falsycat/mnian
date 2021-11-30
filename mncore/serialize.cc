@@ -7,10 +7,9 @@ namespace mnian::core {
 void iPolymorphicSerializable::Serialize(iSerializer* serializer) const {
   assert(serializer);
 
-  serializer->SerializeMap(2);
-  serializer->SerializeKeyValue("type", std::string(type_));
-  serializer->SerializeKey("param");
-  SerializeParam(serializer);
+  iSerializer::MapGuard root(serializer);
+  root.Add("type", std::string(type_));
+  root.Add("param", [this, serializer]() { SerializeParam(serializer); });
 }
 
 
@@ -21,11 +20,7 @@ void iSerializer::MapGuard::Serialize(iSerializer* serializer) const {
   serializer_->SerializeMap(items_.size());
   for (auto& item : items_) {
     serializer_->SerializeKey(item.first);
-    if (std::holds_alternative<const iSerializable*>(item.second)) {
-      std::get<const iSerializable*>(item.second)->Serialize(serializer_);
-    } else {
-      serializer_->SerializeValue(std::move(std::get<Any>(item.second)));
-    }
+    item.second();
   }
 
   auto this_ = const_cast<MapGuard*>(this);
@@ -38,13 +33,7 @@ void iSerializer::ArrayGuard::Serialize(iSerializer* serializer) const {
   (void) serializer;
 
   serializer_->SerializeArray(items_.size());
-  for (auto& item : items_) {
-    if (std::holds_alternative<const iSerializable*>(item)) {
-      std::get<const iSerializable*>(item)->Serialize(serializer_);
-    } else {
-      serializer_->SerializeValue(std::get<Any>(item));
-    }
-  }
+  for (auto& item : items_) item();
 
   auto this_ = const_cast<ArrayGuard*>(this);
   this_->serializer_ = nullptr;
