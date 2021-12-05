@@ -4,9 +4,11 @@
 // deserializing.
 #pragma once
 
+#include <cassert>
 #include <cinttypes>
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -15,7 +17,19 @@
 
 namespace mnian::core {
 
-using Any = std::variant<int64_t, double, bool, std::string>;
+// Variant type used for serialization
+using Any = std::variant<
+    int64_t,
+    double,
+    bool,
+    std::string>;
+
+// Variant type used for Lambda I/O
+using SharedAny = std::variant<
+    int64_t,
+    double,
+    bool,
+    std::shared_ptr<std::string>>;
 
 
 template <typename R, typename T>
@@ -125,10 +139,51 @@ static inline std::optional<bool> ToBool(bool in) {
 }
 
 
+static inline Any FromSharedAny(const SharedAny& in) {
+  if (std::holds_alternative<int64_t>(in)) {
+    return std::get<int64_t>(in);
+  }
+  if (std::holds_alternative<double>(in)) {
+    return std::get<double>(in);
+  }
+  if (std::holds_alternative<bool>(in)) {
+    return std::get<bool>(in);
+  }
+  if (std::holds_alternative<std::shared_ptr<std::string>>(in)) {
+    return *std::get<std::shared_ptr<std::string>>(in);
+  }
+  assert(false);
+  return {};
+}
+
+static inline SharedAny ToSharedAny(const Any& in) {
+  if (std::holds_alternative<int64_t>(in)) {
+    return std::get<int64_t>(in);
+  }
+  if (std::holds_alternative<double>(in)) {
+    return std::get<double>(in);
+  }
+  if (std::holds_alternative<bool>(in)) {
+    return std::get<bool>(in);
+  }
+  if (std::holds_alternative<std::string>(in)) {
+    return std::make_shared<std::string>(std::get<std::string>(in));
+  }
+  assert(false);
+  return {};
+}
+
+
 template <typename R>
 std::optional<R> FromAny(const Any& in) {
   // Checks exact types firstly.
-  if constexpr (std::is_same<R, bool>::value) {
+  if constexpr (std::is_same<R, Any>::value) {
+    return in;
+
+  } else if constexpr (std::is_same<R, SharedAny>::value) {
+    return ToSharedAny(in);
+
+  } else if constexpr (std::is_same<R, bool>::value) {
     return std::visit([&](auto x) { return ToBool(x); }, in);
 
   } else if constexpr (std::is_same<R, std::string>::value) {

@@ -30,21 +30,14 @@ class MockNodeObserver : public core::iNodeObserver {
   MOCK_METHOD(void, ObserveRemove,       (), (override));
   MOCK_METHOD(void, ObserveDelete,       (), (override));
   MOCK_METHOD(void, ObserveUpdate,       (), (override));
-  MOCK_METHOD(void, ObserveSocketChange, (), (override));
 };
 
 class MockNode : public core::iNode {
  public:
   static constexpr const char* kType = "MockNode";
 
-  explicit MockNode(Tag&&                 tag,
-                    std::vector<Socket>&& in  = {},
-                    std::vector<Socket>&& out = {}) :
-      iNode(ActionList {},
-            kType,
-            std::move(tag),
-            std::move(in),
-            std::move(out)) {
+
+  explicit MockNode(Tag&& tag) : iNode(ActionList {}, kType, std::move(tag)) {
   }
 
   MockNode(const MockNode&) = delete;
@@ -55,28 +48,12 @@ class MockNode : public core::iNode {
 
 
   MOCK_METHOD(std::unique_ptr<core::iNode>, Clone, (), (override));
-  MOCK_METHOD(std::shared_ptr<core::iTask>, QueueTask, (), (override));
+  MOCK_METHOD(ProcessRef, EnqueueLambda, (), (override));
 
   MOCK_METHOD(void, SerializeParam, (core::iSerializer*), (const override));
 
 
   using iNode::NotifyUpdate;
-};
-
-class MockNodeFactory : public core::iNodeFactory {
- public:
-  explicit MockNodeFactory(const std::string& name = "") :
-      iNodeFactory(ActionList {}, name) {
-  }
-
-  MockNodeFactory(const MockNodeFactory&) = delete;
-  MockNodeFactory(MockNodeFactory&&) = delete;
-
-  MockNodeFactory& operator=(const MockNodeFactory&) = delete;
-  MockNodeFactory& operator=(MockNodeFactory&&) = delete;
-
-
-  MOCK_METHOD(std::unique_ptr<core::iNode>, Create, (), (override));
 };
 
 }  // namespace mnian::test

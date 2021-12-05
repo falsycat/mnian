@@ -1,15 +1,20 @@
 // No copyright
 #pragma once
 
-#include "mncore/widget.h"
-
 #include <string>
+
+#include "mncore/action.h"
+#include "mncore/widget.h"
 
 
 namespace mnian {
 
 class ImGuiWidget : public core::iWidget {
  public:
+  // common components for ImGui
+  static bool MenuOfActionable(const core::iActionable& target);
+
+
   ImGuiWidget() = delete;
   explicit ImGuiWidget(const char* type) : iWidget(type) {
   }

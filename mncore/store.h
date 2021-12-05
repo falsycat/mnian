@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cassert>
+#include <cinttypes>
 #include <cstdint>
 #include <unordered_map>
 
@@ -11,6 +12,9 @@
 namespace mnian::core {
 
 using ObjectId = uint64_t;
+
+#define MNCORE_PRIobjid PRIu64
+
 
 // An object that stores a map of an object pointer and its id.
 template <typename T>

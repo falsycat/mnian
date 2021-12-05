@@ -4,14 +4,18 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <memory>
+#include <mutex>  // NOLINT(build/c++11)
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "mncore/action.h"
+#include "mncore/conv.h"
 #include "mncore/serialize.h"
 #include "mncore/store.h"
 #include "mncore/task.h"
@@ -55,10 +59,6 @@ class iNodeObserver {
   virtual void ObserveUpdate() {
   }
 
-  // Be called when the node's input or output socket gets open or close.
-  virtual void ObserveSocketChange() {
-  }
-
 
   iNode& target() const {
     return *target_;
@@ -73,67 +73,14 @@ class iNodeObserver {
 class iNode : public iActionable, public iPolymorphicSerializable {
  public:
   friend class iNodeObserver;
-  friend class NodeStore;
 
 
   using Store = ObjectStore<iNode>;
   using Tag   = Store::Tag;
 
-  struct Socket {
-   public:
-    friend class iNode;
-
-
-    enum Type {
-      kInteger,
-      kScalar,
-      kString,
-    };
-
-    enum State {
-      kOpen,    // shown and connectable
-      kClose,   // shown and not connectable
-      kHidden,  // hidden and not connectable
-    };
-
-
-    Socket() = delete;
-    Socket(const std::string& name, Type type) : name_(name), type_(type) {
-    }
-
-    Socket(const Socket&) = default;
-    Socket(Socket&&) = default;
-
-    Socket& operator=(const Socket&) = default;
-    Socket& operator=(Socket&&) = default;
-
-
-    void Update(State state) {
-      state_ = state;
-    }
-
-    bool Match(const Socket& other) const {
-      return type_ == other.type_;
-    }
-
-
-    const std::string& name() const {
-      return name_;
-    }
-    Type type() const {
-      return type_;
-    }
-    State state() const {
-      return state_;
-    }
-
-   private:
-    std::string name_;
-
-    Type type_;
-
-    State state_ = kClose;
-  };
+  class Socket;
+  class Process;
+  class ProcessRef;
 
 
   // Deserializes an id integer and returns a pointer to the node.
@@ -141,13 +88,9 @@ class iNode : public iActionable, public iPolymorphicSerializable {
 
 
   iNode() = delete;
-  iNode(ActionList&&          actions,
-        const char*           type,
-        Tag&&                 tag,
-        std::vector<Socket>&& in,
-        std::vector<Socket>&& out) :
+  iNode(ActionList&& actions, const char* type, Tag&& tag) :
       iActionable(std::move(actions)), iPolymorphicSerializable(type),
-      tag_(std::move(tag)), input_(std::move(in)), output_(std::move(out)) {
+      tag_(std::move(tag)) {
     tag_.Attach(this);
   }
   ~iNode() {
@@ -166,7 +109,10 @@ class iNode : public iActionable, public iPolymorphicSerializable {
 
   virtual std::unique_ptr<iNode> Clone() = 0;
 
-  virtual std::shared_ptr<iTask> QueueTask() = 0;
+  virtual ProcessRef EnqueueLambda() = 0;
+
+
+  std::unordered_map<const Socket*, size_t> CreateSocketIndexMap() const;
 
 
   ObjectId id() const {
@@ -176,11 +122,20 @@ class iNode : public iActionable, public iPolymorphicSerializable {
     return tag_;
   }
 
-  const std::vector<Socket>& input() const {
-    return input_;
+  size_t inputCount() const {
+    return input_.size();
   }
-  const std::vector<Socket>& output() const {
-    return output_;
+  size_t outputCount() const {
+    return input_.size();
+  }
+
+  const Socket& input(size_t i) const {
+    assert(i < input_.size());
+    return *input_[i];
+  }
+  const Socket& output(size_t i) const {
+    assert(i < output_.size());
+    return *output_[i];
   }
 
  protected:
@@ -199,53 +154,216 @@ class iNode : public iActionable, public iPolymorphicSerializable {
       observer->ObserveUpdate();
     }
   }
-  void NotifySocketChange() {
-    for (auto observer : observers_) {
-      observer->ObserveSocketChange();
-    }
-  }
 
-  Socket* input() {
-    return &input_[0];
+  auto& input() {
+    return input_;
   }
-  Socket* output() {
-    return &output_[0];
+  auto& output() {
+    return output_;
   }
 
  private:
   Tag tag_;
 
-  std::vector<Socket> input_;
-  std::vector<Socket> output_;
+  std::vector<std::unique_ptr<Socket>> input_;
+  std::vector<std::unique_ptr<Socket>> output_;
 
   std::vector<iNodeObserver*> observers_;
 };
 
 
-// An interface of factory that creates Node instance.
-class iNodeFactory : public iActionable {
+class iNode::Socket final {
  public:
-  iNodeFactory() = delete;
-  iNodeFactory(ActionList&& actions, const std::string& name) :
-      iActionable(std::move(actions)), name_(name) {
+  enum Type {
+    kInteger,
+    kScalar,
+    kVec2,
+    kVec3,
+    kVec4,
+    kTensor,
+    kString,
+  };
+
+  // Don't forget that Meta is just a request for input supplier, and the actual
+  // input is not limited strictly.
+  struct Meta {
+    std::string name;
+    std::string description = "";
+
+    const char* purpose = "";
+
+    // for kInteger and kScalar
+    double min = 0.;
+    double max = 0.;  // When min == max, there's no restriction.
+
+    // for kString
+    bool multiline = false;
+  };
+
+
+  static Type GetTypeFromValue(const SharedAny& v) {
+    if (std::holds_alternative<int64_t>(v)) {
+      return kInteger;
+    }
+    if (std::holds_alternative<double>(v)) {
+      return kScalar;
+    }
+    if (std::holds_alternative<std::shared_ptr<std::string>>(v)) {
+      return kString;
+    }
+    assert(false);
+    return kInteger;
   }
 
-  iNodeFactory(const iNodeFactory&) = delete;
-  iNodeFactory(iNodeFactory&&) = delete;
 
-  iNodeFactory& operator=(const iNodeFactory&) = delete;
-  iNodeFactory& operator=(iNodeFactory&&) = delete;
+  Socket() = delete;
+  Socket(size_t index, Meta&& meta, SharedAny&& def) :
+      index_(index),
+      type_(GetTypeFromValue(def)),
+      meta_(std::move(meta)),
+      def_(std::move(def)) {
+  }
+
+  Socket(const Socket&) = delete;
+  Socket(Socket&&) = delete;
+
+  Socket& operator=(const Socket&) = delete;
+  Socket& operator=(Socket&&) = delete;
 
 
-  virtual std::unique_ptr<iNode> Create() = 0;
-
-
-  const std::string& name() const {
-    return name_;
+  size_t index() const {
+    return index_;
+  }
+  Type type() const {
+    return type_;
+  }
+  const Meta& meta() const {
+    return meta_;
+  }
+  const SharedAny& def() const {
+    return def_;
   }
 
  private:
-  std::string name_;
+  size_t index_;
+
+  Type      type_;
+  Meta      meta_;
+  SharedAny def_;
+};
+
+class iNode::Process final {
+ public:
+  enum State {
+    kPending,
+    kRunning,
+    kFinished,
+    kAborted,
+  };
+
+
+  Process() = default;
+
+  Process(const Process&) = delete;
+  Process(Process&&) = delete;
+
+  Process& operator=(const Process&) = delete;
+  Process& operator=(Process&&) = delete;
+
+
+  void RequestAbort() {
+    abort_ = true;
+  }
+
+
+  bool abort() const {
+    return abort_;
+  }
+
+  void state(State next) {
+    state_ = next;
+  }
+  State state() const {
+    return state_;
+  }
+
+  void progress(double f) {
+    progress_ = f;
+  }
+  double progress() const {
+    return progress_;
+  }
+
+  void msg(const std::string& msg) {
+    std::lock_guard<std::mutex> _(mtx_);
+    msg_ = msg;
+  }
+  std::string msg() const {
+    std::lock_guard<std::mutex> _(const_cast<std::mutex&>(mtx_));
+    return msg_;
+  }
+
+ private:
+  std::mutex mtx_;
+
+  std::atomic<bool> abort_ = false;
+
+  std::atomic<State> state_ = kPending;
+
+  std::atomic<double> progress_ = 0.;
+
+  std::string msg_;
+};
+
+class iNode::ProcessRef final {
+ public:
+  ProcessRef() = default;
+  explicit ProcessRef(std::shared_ptr<iLambda> lambda,
+                      std::shared_ptr<Process> proc) :
+      lambda_(std::move(lambda)), proc_(std::move(proc)) {
+    assert(lambda_);
+    assert(proc_);
+  }
+
+  ProcessRef(const ProcessRef&) = delete;
+  ProcessRef(ProcessRef&&) = default;
+
+  ProcessRef& operator=(const ProcessRef&) = delete;
+  ProcessRef& operator=(ProcessRef&&) = default;
+
+
+  void RequestAbort() {
+    proc_->RequestAbort();
+  }
+
+
+  bool busy() const {
+    return proc_ &&
+        state() != Process::kFinished &&
+        state() != Process::kAborted;
+  }
+  bool empty() const {
+    return !proc_;
+  }
+
+  const std::shared_ptr<iLambda>& lambda() const {
+    return lambda_;
+  }
+
+  Process::State state() const {
+    return proc_->state();
+  }
+  double progress() const {
+    return proc_->progress();
+  }
+  std::string msg() const {
+    return proc_->msg();
+  }
+
+ private:
+  std::shared_ptr<iLambda> lambda_;
+
+  std::shared_ptr<Process> proc_;
 };
 
 }  // namespace mnian::core

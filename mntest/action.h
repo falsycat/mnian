@@ -5,22 +5,14 @@
 
 #include <gmock/gmock.h>
 
+#include <string>
+
 
 namespace mnian::test {
 
 class MockAction : public core::iAction {
  public:
-  static constexpr const char* kName        = "MockAction";
-  static constexpr const char* kDescription = "mock action for gtest";
-
-  static inline const Meta kDefaultMeta = {
-    .name        = kName,
-    .description = kDescription,
-  };
-
-
-  MockAction() : iAction(Meta(kDefaultMeta)) {
-  }
+  MockAction() = default;
 
   MockAction(const MockAction&) = delete;
   MockAction(MockAction&&) = delete;
@@ -29,7 +21,10 @@ class MockAction : public core::iAction {
   MockAction& operator=(MockAction&&) = delete;
 
 
-  MOCK_METHOD1(Exec, void(const Param&));
+  MOCK_METHOD(void, Exec, (const Param&), (const override));
+
+  MOCK_METHOD(std::string, GetName, (), (const override));
+  MOCK_METHOD(std::string, GetDescription, (), (const override));
 };
 
 class MockActionable : public core::iActionable {

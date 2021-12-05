@@ -9,11 +9,16 @@
 #include <type_traits>
 #include <utility>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "mncore/serialize.h"
 
 
 namespace mnian::core {
+
+class iDirItem;
+class iNode;
+
 
 class iWidget : public iPolymorphicSerializable{
  public:
@@ -125,6 +130,73 @@ class WidgetStore final : public iSerializable {
   ItemMap items_;
 
   iWidget::Id next_ = 0;
+};
+
+
+class WidgetMap final {
+ public:
+  WidgetMap() = default;
+
+  WidgetMap(const WidgetMap&) = delete;
+  WidgetMap(WidgetMap&&) = delete;
+
+  WidgetMap& operator=(const WidgetMap&) = delete;
+  WidgetMap& operator=(WidgetMap&&) = delete;
+
+
+  void Bind(iWidget* w, iDirItem* d) {
+    wd_[w].insert(d);
+    dw_[d].insert(w);
+  }
+  void Bind(iWidget* w, iNode* n) {
+    wn_[w].insert(n);
+    nw_[n].insert(w);
+  }
+
+  void Forget(iWidget* w) {
+    for (auto d : wd_[w]) dw_[d].erase(w);
+    for (auto n : wn_[w]) nw_[n].erase(w);
+    wd_.erase(w);
+    wn_.erase(w);
+  }
+
+
+  const std::unordered_set<iWidget*>& Find(iDirItem* d) const {
+    static const std::unordered_set<iWidget*> empty_ = {};
+
+    auto itr = dw_.find(d);
+    if (itr == dw_.end()) return empty_;
+    return itr->second;
+  }
+  const std::unordered_set<iWidget*>& Find(iNode* n) const {
+    static const std::unordered_set<iWidget*> empty_ = {};
+
+    auto itr = nw_.find(n);
+    if (itr == nw_.end()) return empty_;
+    return itr->second;
+  }
+
+  iWidget* Find(iDirItem* d, const char* type) const {
+    const auto& wset = Find(d);
+    for (auto w : wset) {
+      if (w->type() == type) return w;
+    }
+    return nullptr;
+  }
+  iWidget* Find(iNode* n, const char* type) const {
+    const auto& wset = Find(n);
+    for (auto w : wset) {
+      if (w->type() == type) return w;
+    }
+    return nullptr;
+  }
+
+ private:
+  std::unordered_map<iWidget*, std::unordered_set<iDirItem*>> wd_;
+  std::unordered_map<iDirItem*, std::unordered_set<iWidget*>> dw_;
+
+  std::unordered_map<iWidget*, std::unordered_set<iNode*>> wn_;
+  std::unordered_map<iNode*, std::unordered_set<iWidget*>> nw_;
 };
 
 }  // namespace mnian::core

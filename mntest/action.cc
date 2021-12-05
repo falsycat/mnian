@@ -7,12 +7,6 @@
 
 namespace mnian::test {
 
-TEST(iAction, Accessors) {
-  MockAction action;
-  ASSERT_STREQ(action.name().c_str(),        MockAction::kName);
-  ASSERT_STREQ(action.description().c_str(), MockAction::kDescription);
-}
-
 TEST(iActionable, Accessors) {
   MockActionable actionable;
 

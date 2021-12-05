@@ -16,11 +16,6 @@ namespace mnian::core {
 // override Exec() method.
 class iAction {
  public:
-  struct Meta {
-    std::string name;
-    std::string description;
-  };
-
   enum Reason {
     kUnknown,
   };
@@ -38,8 +33,8 @@ class iAction {
   static constexpr Flags kDefaultFlags = kEnabled | kShown;
 
 
-  iAction() = delete;
-  explicit iAction(Meta&& meta) : meta_(std::move(meta)) {
+  iAction() = default;
+  explicit iAction(Flags flags) : flags_(flags) {
   }
   virtual ~iAction() = default;
 
@@ -50,7 +45,10 @@ class iAction {
   iAction& operator=(iAction&&) = delete;
 
 
-  virtual void Exec(const Param&) = 0;
+  virtual void Exec(const Param&) const = 0;
+
+  virtual std::string GetName() const = 0;
+  virtual std::string GetDescription() const = 0;
 
 
   void SetFlags(Flags v) {
@@ -61,20 +59,11 @@ class iAction {
   }
 
 
-  const std::string& name() const {
-    return meta_.name;
-  }
-  const std::string& description() const {
-    return meta_.description;
-  }
-
   Flags flags() const {
     return flags_;
   }
 
  private:
-  const Meta meta_;
-
   Flags flags_ = kDefaultFlags;
 };
 
@@ -114,16 +103,7 @@ class iActionable {
 // This is an Action that does nothing.
 class NullAction : public iAction {
  public:
-  static inline const Meta kDefaultMeta = {
-    .name        = "null",
-    .description = "does nothing",
-  };
-
-
-  NullAction() : iAction(Meta(kDefaultMeta)) {
-  }
-  explicit NullAction(Meta&& meta) : iAction(std::move(meta)) {
-  }
+  NullAction() = default;
 
   NullAction(const NullAction&) = delete;
   NullAction(NullAction&&) = delete;
@@ -132,7 +112,14 @@ class NullAction : public iAction {
   NullAction& operator=(NullAction&&) = delete;
 
 
-  void Exec(const Param&) override {
+  void Exec(const Param&) const override {
+  }
+
+  std::string GetName() const override {
+    return "NullAction";
+  }
+  std::string GetDescription() const override {
+    return "does nothing";
   }
 };
 

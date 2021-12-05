@@ -150,6 +150,9 @@ class iApp {
   ObjectStoreSet& stores() {
     return stores_;
   }
+  WidgetMap& wmap() {
+    return wmap_;
+  }
   Project& project() {
     return project_;
   }
@@ -176,6 +179,8 @@ class iApp {
 
 
   ObjectStoreSet stores_;
+
+  WidgetMap wmap_;
 
   Project project_;
 

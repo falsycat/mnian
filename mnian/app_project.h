@@ -18,10 +18,9 @@ static constexpr const char* kInitialProject = R"({
       "type" : "mnian::core::Dir",
       "param": {
         "id"   : 0,
-        "items": [],
+        "items": {},
       },
     },
-    "nstore": [],
     "wstore": [
       {
         "id": 0,

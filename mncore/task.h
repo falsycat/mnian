@@ -15,6 +15,8 @@
 #include <variant>
 #include <vector>
 
+#include "mncore/conv.h"
+
 
 namespace mnian::core {
 
@@ -130,13 +132,6 @@ class Task : public iTask {
 
 class iLambda : public iTask {
  public:
-  using Value = std::variant<
-      int64_t,
-      double,
-      bool,
-      std::shared_ptr<std::string>>;
-
-
   iLambda() = delete;
   iLambda(size_t in, size_t out) : in_(in), out_(out) {
   }
@@ -164,6 +159,10 @@ class iLambda : public iTask {
   }
 
  protected:
+  const SharedAny& in(size_t i) {
+    std::lock_guard<std::mutex> _(mtx_);
+    return in_[i].value();
+  }
   template <typename T>
   const T& in(size_t i) {
     std::lock_guard<std::mutex> _(mtx_);
@@ -188,16 +187,16 @@ class iLambda : public iTask {
     In& operator=(In&&) = default;
 
 
-    void Set(Value&& value) {
+    void Set(SharedAny&& value) {
       value_ = std::move(value);
     }
 
-    const Value& value() const {
+    const SharedAny& value() const {
       return value_;
     }
 
    private:
-    Value value_;
+    SharedAny value_;
   };
 
   class Out final {
@@ -214,21 +213,21 @@ class iLambda : public iTask {
     void Connect(In* in) {
       assert(in);
 
-      in->Set(Value(value_));
+      in->Set(SharedAny(value_));
       in_.push_back(in);
     }
 
-    void Set(Value&& value) {
+    void Set(SharedAny&& value) {
       value_ = std::move(value);
       for (auto& in : in_) {
-        in->Set(Value(value_));
+        in->Set(SharedAny(value_));
       }
     }
 
    private:
     std::vector<In*> in_;
 
-    Value value_;
+    SharedAny value_;
   };
 
 

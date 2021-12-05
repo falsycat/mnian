@@ -30,6 +30,7 @@ target_sources(mntest
     store.cc
     task.cc
     task.h
+    widget.cc
 )
 
 include(GoogleTest)
